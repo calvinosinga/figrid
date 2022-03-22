@@ -18,27 +18,39 @@ class DataList():
             dc.update(r.props)
             self.dclist.append(dc)
         return
-    
+
     def append(self, dataContainer):
         self.dclist.append(dataContainer)
         return
     
+    def getAttrs(self):
+        unique_attr = set()
+        for dc in self.dclist:
+            unique_attr.update(list(dc.attrs.keys()))
+        return unique_attr
+
     def getAttrVals(self, key):
         unique_vals = []
         for dc in self.dclist:
             attrVal = dc.get(key)
 
-            if not attrVal == dc.default_key or \
-                    not attrVal in unique_vals:
+            if not attrVal in unique_vals:
                 
                 unique_vals.append(attrVal)
         
         return unique_vals
 
     def removeMatching(self, desired_attrs):
-        for dc in self.dclist:
-            if dc.isMatch(desired_attrs):
-                self.dclist.remove(dc)
+        rmidx = []
+        for dc in range(len(self.dclist)):
+            if self.dclist[dc].isMatch(desired_attrs):
+                rmidx.append(dc)
+        rmidx = np.array(rmidx)
+        for rm in range(len(rmidx)):
+
+            self.dclist.pop(rmidx[rm])
+            rmidx = rmidx - 1
+            
         return
 
     def getMatching(self, desired_attrs, return_as = 'list'):
@@ -66,14 +78,20 @@ class DataList():
             _, y = m.getData()
             ymins = np.minimum(y, ymins)
             ymaxs = np.maximum(y, ymaxs)
-            dl.remove(m)
-
+        
+        dl.removeMatching(attrs)
         filldc = DataContainer([x, ymins, ymaxs])
         attrs['post_process'] = 'fill'
         filldc.update(attrs)
         dl.append(filldc)
-        return
+        return filldc
     
+    def makeRatio(self, numAttrs, denom):
+        dl = self.dclist
+        numers = dl.getMatching(numAttrs)
+
+        for n in numers:
+
 class DataContainer():
 
     def __init__(self, data):

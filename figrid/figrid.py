@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import numpy as np
 import matplotlib.pyplot as plt
-from panel import Panel
+from figrid.panel import Panel
 import copy
 import matplotlib.gridspec as gspec
 
@@ -27,6 +27,8 @@ class Figrid():
             self.rowValues = ordered_list
         if not func is None:
             self.rowOrderFunc = func
+        else:
+            self.rowOrderFunc = self._defaultOrder
         return
     
     def _defaultOrder(self, attrList):
@@ -37,10 +39,11 @@ class Figrid():
             self.colValues = ordered_list
         if not func is None:
             self.colOrderFunc = func
+        else:
+            self.colOrderFunc = self._defaultOrder
         return
     
-    def arrangePanels(self, includeAttr, rmAttr, rowAttr, colAttr,
-            panelAttr):
+    def arrange(self, rowAttr, colAttr):
         
         rowValues = self.dl.getAttrVals(rowAttr)
         colValues = self.dl.getAttrVals(colAttr)
@@ -48,8 +51,8 @@ class Figrid():
         rowValues = self.rowOrderFunc(rowValues)
         colValues = self.colOrderFunc(colValues)
 
-        print('The row values for %s: %s'(rowAttr, str(rowValues)))
-        print('The column values for %s: %s'(colAttr, str(colValues)))
+        print('The row values for %s: %s'%(rowAttr, str(rowValues)))
+        print('The column values for %s: %s'%(colAttr, str(colValues)))
 
         nrows = len(rowValues)
         ncols = len(colValues)
@@ -58,14 +61,13 @@ class Figrid():
         
         for i in range(nrows):
             for j in range(ncols):
-                panelAttr = copy.copy(includeAttr)
+                panelAttr = {}
                 panelAttr[rowAttr] = rowValues[i]
                 panelAttr[colAttr] = colValues[j]
 
                 dlPanel = self.dl.getMatching(panelAttr,
                         return_as = 'DataList')
 
-                dlPanel.removeMatching(rmAttr)
                 self.panels[i, j] = Panel(dlPanel, panelAttr)
 
         self.dim = [nrows, ncols]
@@ -142,6 +144,13 @@ class Figrid():
     
     ########## INTERFACING WITH PANELS ##############################
     
+    def setFills(self, fillAttrs, slc = []):
+
+        if not slc:
+            slc = (slice(None), slice(None))
+
+        def _setFill(panel):
+            panel.makeFill(
     def setPlotArgs(self, panelVal, kwargs, slc = []):
         
         if not slc:
@@ -207,13 +216,14 @@ class Figrid():
     
     ############ INTERFACING WITH FIGURE ############################
 
-    def setRowLabels(self, ):
+    # def setRowLabels(self, ):
 
     # def setColLabels()
 
     # def axisLabels()
 
     ############ PLOTTING ROUTINES ##################################
+    
     
     def plotPanel(self, rowidx, colidx):
         idx = (rowidx, colidx)
@@ -228,9 +238,12 @@ class Figrid():
                 self.plotPanel(i, j)
         return
     
+
         
     ############ ROUTINES FOR CONVENIENCE ###########################
 
     # def defaultTicks(self):
 
+    def ratios(self):
 
+        return

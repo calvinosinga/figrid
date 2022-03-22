@@ -2,7 +2,7 @@
 
 import matplotlib as mpl
 import numpy as np
-from data_container import DataContainer
+from figrid.data_container import DataContainer
 
 class Panel():
 
@@ -15,7 +15,18 @@ class Panel():
     def setAxis(self, axis):
         self.axis = axis
         return
+    
+    def makeFill(self, attrs, kwargs):
+        filldc = self.panelList.makeFill(attrs)
         
+        def _fillFunc(data, kwargs):
+            self.axis.fill_between(data[0], data[1], data[2], **kwargs)
+            return
+
+        filldc.setFunc(_fillFunc)
+              
+        return
+
     def plot(self, ax):
         for dc in self.panelList:
             kwargs = self.plotArgs[dc.get(self.attr)]
