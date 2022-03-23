@@ -16,8 +16,17 @@ class Figrid():
         self.colOrderFunc = self._defaultOrder
 
         self.panels = None
+        self.setrc()
         return
     
+    def setrc(self, rcparams = {}):
+        if not rcparams:
+            plt.rcParams['font.family'] = 'serif'
+            plt.rcParams['mathtext.fontset'] = 'dejavuserif'
+        else:
+            plt.rcParams.update(rcparams)
+        return
+
     ########## MAKING FIGURES #####################################
 
     def setRowOrder(self, ordered_list = [], func = None):
@@ -132,15 +141,120 @@ class Figrid():
 
     ########## INTERFACING WITH PANELS ##############################
     
-      
+    def makeFills(self, attrs, fillKwargs = {}, slc = []):
+        
+        if not slc:
+            slc = (slice(None), slice(None))
+        
+        def _panelFill(panel):
+            
+            panel.makeFill(attrs, fillKwargs)
+            return panel
+
+        fillnp = np.vectorize(_panelFill)
+        self.panels[slc] = fillnp(self.panels[slc])
+        print(self.panels)
+        return
     
+    def tickParams(self, tickParams, xory = 'both', which = 'both', 
+            slc = []):
+        if not slc:
+            slc = (slice(None), slice(None))
+
+        def _panelTicks(panel):
+            panel.setTicks(tickParams, xory, which)
+            return panel
+        
+        ticknp = np.vectorize(_panelTicks)
+        self.panels[slc] = ticknp(self.panels[slc])
+        return
+
+    def axisParams(self, axisParams, slc = []):
+        if not slc:
+            slc = (slice(None), slice(None))
+
+        def _panelAxis(panel):
+            panel.setAxis(axisParams)
+            return panel
+
+        axisnp = np.vectorize(_panelAxis)
+        self.panels[slc] = axisnp(self.panels[slc])
+        return
+
+    def drawLegend(self, legendParams, slc = []):
+        if not slc:
+            slc = (slice(None), slice(None))
+
+        def _panelLegend(panel):
+            panel.drawLegend(legendParams)
+            return panel
+
+        legnp = np.vectorize(_panelLegend)
+        self.panels[slc] = legnp(self.panels[slc])
+        return
+
+    def plotArgs(self, plotArgs, attrs, slc = []):
+        if not slc:
+            slc = (slice(None), slice(None))
+
+        def _panelArgs(panel):
+            panel.setArgs(attrs, plotArgs)
+            return panel
+        
+        argnp = np.vectorize(_panelArgs)
+        self.panels[slc] = argnp(self.panels[slc])
+        return
+
+    def shareAxis(self, idx, xory, slc = []):
+        
+        if not slc:
+            slc = (slice(None), slice(None))
+        
+        axisForShare = self.panels[idx].axis
+
+        def _sharex(panel):
+            panel.axis.sharex(axisForShare)
+            return panel
+        def _sharey(panel):
+            panel.axis.sharey(axisForShare)
+            return panel
+        xnp = np.vectorize(_sharex)
+        ynp = np.vectorize(_sharey)
+        if xory == 'x' or xory == 'both':
+            self.panels[slc] = xnp(self.panels[slc])
+        if xory == 'y' or xory == 'both':
+            self.panels[slc] = ynp(self.panels[slc])
+        return
+
     ############ INTERFACING WITH FIGURE ############################
 
-    # def setRowLabels(self, ):
+    def setRowLabels(self, rowlabels, pos, textKwargs = {},
+            colidx = 0):
+                
+        if not slc:
+            slc = (slice(None), slice(None))
+        
+        for i in range(self.dim[0]):
+            p = self.panels[i, colidx]
+            p.axis.text(pos[0], pos[1], rowlabels[i],
+                    transform = p.axis.transAxes, **textKwargs)
+        return
 
-    # def setColLabels()
+    def setColLabels(self, collabels, pos, textKwargs = {},
+            rowidx = 0):
 
-    # def axisLabels()
+        if not slc:
+            slc = (slice(None), slice(None))
+        
+        for i in range(self.dim[1]):
+            p = self.panels[rowidx, i]
+            p.axis.text(pos[0], pos[1], collabels[i],
+                    transform = p.axis.transAxes, **textKwargs)
+        return
+
+    def text(self, pos, text, textKwargs = {}):
+        self.fig.text(pos[0], pos[1], text, **textKwargs)
+        return
 
     ############ PLOTTING ROUTINES ##################################
     
@@ -148,24 +262,13 @@ class Figrid():
     def plotPanel(self, rowidx, colidx):
         idx = (rowidx, colidx)
         panel = self.panels[idx]
-        axis = self.axes[idx]
-        panel.plot(axis)
+        panel.plot()
         return
 
-    def plotAll(self):
+    def plot(self):
         for i in range(self.dim[0]):
             for j in range(self.dim[1]):
                 self.plotPanel(i, j)
-        return
-    
-
-        
-    ############ ROUTINES FOR CONVENIENCE ###########################
-
-    # def defaultTicks(self):
-
-    def ratios(self):
-
         return
 
 

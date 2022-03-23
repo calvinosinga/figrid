@@ -23,7 +23,7 @@ class Panel():
         if func is None:
 
             def _defaultPlot(data, kwargs):
-                self.axis.plot(data[0], data[1], kwargs)
+                self.axis.plot(data[0], data[1], **kwargs)
                 return
             
             self.panelList.setFunc(attrs, _defaultPlot)
@@ -33,6 +33,7 @@ class Panel():
         return
 
     def makeFill(self, attrs, kwargs):
+        #print(attrs)
         filldc = self.panelList.makeFill(attrs)
         
         def _fillFunc(data, fill_kwargs):
@@ -48,5 +49,23 @@ class Panel():
         for dc in self.panelList.getData():
             dc.plot()
         return
+   
+    ##### INTERFACE WITH AXIS #######################################
+
+    def setTicks(self, tickParams, xory = 'both', which = 'both'):
+        print(tickParams)
+
+        self.axis.tick_params(axis = xory, which = which, 
+                **tickParams)
+        return
+
+    def setAxis(self, axisParams):
+        self.axis.set(**axisParams)
+        return
+
+    def drawLegend(self, legendParams):
+        self.axis.legend(**legendParams)
+        return
     
-        
+    #def 
+

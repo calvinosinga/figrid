@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import numpy as np
+import copy
 
 class DataList():
     def __init__(self, dclist = []):
@@ -63,13 +64,15 @@ class DataList():
     def getMatching(self, desired_attrs, return_as = 'list'):
         matches = []
         for dc in self.dclist:
+            #print(desired_attrs['color'])
+            print(dc.attrs['color'])
             if dc.isMatch(desired_attrs):
                 matches.append(dc)
         
         if return_as == 'list':
-            return matches
+            return copy.deepcopy(matches)
         elif return_as == 'DataList':
-            return DataList(matches)
+            return DataList(copy.deepcopy(matches))
         else:
             msg = "return_as not supported (list, DataList)"
             raise ValueError(msg)
@@ -77,22 +80,28 @@ class DataList():
     ##### POST-PROCESS DATA #########################################
 
     def makeFill(self, attrs):
-
+        print('datalist make fill')
+        # print(attrs)
+        # print(self.getAttrVals('color'))
         dl = self.dclist
-        matches = dl.getMatching(attrs)
-        x, y = matches[0].getData()
-        ymins = np.ones_like(y)
-        ymaxs = np.ones_like(y)
+        matches = self.getMatching(attrs)
+        print(matches)
+        data = matches[0].getData()
+        x = data[0]
+        y = data[1]
+        ymins = np.ones_like(y) * y
+        ymaxs = np.ones_like(y) * y
         for m in matches:
-            _, y = m.getData()
+            data = m.getData()
+            y = data[1]
             ymins = np.minimum(y, ymins)
             ymaxs = np.maximum(y, ymaxs)
         
-        dl.removeMatching(attrs)
+        #self.removeMatching(attrs)
         filldc = DataContainer([x, ymins, ymaxs])
         attrs['post_process'] = 'fill'
         filldc.update(attrs)
-        dl.append(filldc)
+        self.append(filldc)
         return filldc
     
     ##### INTERFACING WITH DATA CONTAINERS ##########################
@@ -157,7 +166,7 @@ class DataContainer():
             else:
                 isMatch = (isMatch and self_val == v)
 
-        
+        print(isMatch)
         return isMatch
     
     ######### PLOT DATA ############################################
