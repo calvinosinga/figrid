@@ -6,47 +6,47 @@ from figrid.data_container import DataContainer
 
 class Panel():
 
-    def __init__(self, dataList, panelAttr):
-        self.attr = panelAttr
+    def __init__(self, dataList, axis):
         self.panelList = dataList
-        self.axis = None
-        return
-
-    def setAxis(self, axis):
         self.axis = axis
+
+        self.setFunc({})
         return
     
+    ##### INTERFACE WITH DATALIST ###################################
+
+    def setArgs(self, attrs, kwargs):
+        self.panelList.setArgs(attrs, kwargs)
+        return
+
+    def setFunc(self, attrs, func = None):
+        if func is None:
+
+            def _defaultPlot(data, kwargs):
+                self.axis.plot(data[0], data[1], kwargs)
+                return
+            
+            self.panelList.setFunc(attrs, _defaultPlot)
+        
+        else:
+            self.panelList.setFunc(attrs, func)
+        return
+
     def makeFill(self, attrs, kwargs):
         filldc = self.panelList.makeFill(attrs)
         
-        def _fillFunc(data, kwargs):
-            self.axis.fill_between(data[0], data[1], data[2], **kwargs)
+        def _fillFunc(data, fill_kwargs):
+            self.axis.fill_between(data[0], data[1], data[2], 
+                    **fill_kwargs)
             return
 
         filldc.setFunc(_fillFunc)
-              
+        filldc.setArgs(kwargs)
         return
 
-    def plot(self, ax):
-        for dc in self.panelList:
-            kwargs = self.plotArgs[dc.get(self.attr)]
-            dc.plot(ax, kwargs)
-
-        # set ticks
-
-        # set legend
+    def plot(self):
+        for dc in self.panelList.getData():
+            dc.plot()
         return
     
-    def setTicks(self, axis, which, kwargs):
-        
-        if axis == 'x' or axis == 'both':
-            self.xtickArgs[which].update(kwargs)
-        if axis == 'y' or axis == 'both':
-            self.ytickArgs[which].update(kwargs)
-        
-        return
-    
-    def setLegend(self, kwargs):
-        self.legendArgs.update(kwargs)
-        return
         

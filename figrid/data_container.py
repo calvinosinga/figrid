@@ -7,6 +7,8 @@ class DataList():
         self.dclist = dclist
         return
     
+    ##### I/O METHODS ###############################################
+
     def loadHdf5(self):
         return
     
@@ -18,6 +20,8 @@ class DataList():
             dc.update(r.props)
             self.dclist.append(dc)
         return
+
+    ##### DATA ACCESS/MANAGEMENT ####################################
 
     def append(self, dataContainer):
         self.dclist.append(dataContainer)
@@ -40,6 +44,9 @@ class DataList():
         
         return unique_vals
 
+    def getData(self):
+        return self.dclist
+        
     def removeMatching(self, desired_attrs):
         rmidx = []
         for dc in range(len(self.dclist)):
@@ -67,6 +74,8 @@ class DataList():
             msg = "return_as not supported (list, DataList)"
             raise ValueError(msg)
     
+    ##### POST-PROCESS DATA #########################################
+
     def makeFill(self, attrs):
 
         dl = self.dclist
@@ -86,12 +95,20 @@ class DataList():
         dl.append(filldc)
         return filldc
     
-    def makeRatio(self, numAttrs, denom):
-        dl = self.dclist
-        numers = dl.getMatching(numAttrs)
+    ##### INTERFACING WITH DATA CONTAINERS ##########################
 
-        for n in numers:
-
+    def setArgs(self, attrs, kwargs):
+        matches = self.getMatching(attrs)
+        for m in matches:
+            m.setArgs(kwargs)
+        return matches
+        
+    def setFunc(self, attrs, func):
+        matches = self.getMatching(attrs)
+        for m in matches:
+            m.setFunc(func)
+        return matches
+    
 class DataContainer():
 
     def __init__(self, data):
@@ -151,4 +168,8 @@ class DataContainer():
     
     def plot(self):
         self.plotFunc(self.data, self.plotArgs)
+        return
+    
+    def setArgs(self, kwargs):
+        self.plotArgs.update(kwargs)
         return

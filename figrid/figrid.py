@@ -16,11 +16,9 @@ class Figrid():
         self.colOrderFunc = self._defaultOrder
 
         self.panels = None
-        plt.rcParams["font.family"] = "serif"
-        plt.rcParams["mathtext.fontset"] = 'dejavuserif'
         return
     
-    ########## ARRANGING PANELS #####################################
+    ########## MAKING FIGURES #####################################
 
     def setRowOrder(self, ordered_list = [], func = None):
         if ordered_list:
@@ -43,7 +41,10 @@ class Figrid():
             self.colOrderFunc = self._defaultOrder
         return
     
-    def arrange(self, rowAttr, colAttr):
+    def arrange(self, rowAttr, colAttr, panel_length = 3, 
+            panel_bt = 0.1, xborder = 1, yborder = 1, 
+            height_ratios = None, width_ratios = None, 
+            dpi = 100):
         
         rowValues = self.dl.getAttrVals(rowAttr)
         colValues = self.dl.getAttrVals(colAttr)
@@ -56,31 +57,11 @@ class Figrid():
 
         nrows = len(rowValues)
         ncols = len(colValues)
-
-        self.panels = np.empty((nrows, ncols), dtype = object)
         
-        for i in range(nrows):
-            for j in range(ncols):
-                panelAttr = {}
-                panelAttr[rowAttr] = rowValues[i]
-                panelAttr[colAttr] = colValues[j]
-
-                dlPanel = self.dl.getMatching(panelAttr,
-                        return_as = 'DataList')
-
-                self.panels[i, j] = Panel(dlPanel, panelAttr)
-
         self.dim = [nrows, ncols]
         self.rowValues = rowValues
         self.colValues = colValues
-        return
 
-    ########## MAKING FIGURE ########################################
-    
-    def makeFig(self, panel_length = 3, panel_bt = 0.1, 
-                xborder = 1, yborder = 1, height_ratios = None, 
-                width_ratios = None, dpi = 100):
-        
         nrows = self.dim[0]
         ncols = self.dim[1]
 
@@ -127,92 +108,31 @@ class Figrid():
                 height_ratios = height_ratios, width_ratios = width_ratios)
         
         # making panels list
-        axes = np.empty((nrows, ncols), dtype=object)
+        self.panels = np.empty((nrows, ncols), dtype = object)
+
         for i in range(nrows):
             for j in range(ncols):
                 idx = (i, j)
-                self.panels[idx].setAxis(fig.add_subplot(gs[idx]))
+                panelAttr = {}
+                panelAttr[rowAttr] = rowValues[i]
+                panelAttr[colAttr] = colValues[j]
+
+                dlPanel = self.dl.getMatching(panelAttr,
+                        return_as = 'DataList')
+                axis = fig.add_subplot(gs[idx])
+                self.panels[idx] = Panel(dlPanel, axis)
 
         self.fig = fig
-        self.axes = axes
         self.panel_length = panel_length
         self.panel_bt = panel_bt
         self.xborder = xborder
         self.yborder = yborder
         self.figsize = [figwidth, figheight]
         return
-    
+
     ########## INTERFACING WITH PANELS ##############################
     
-    def setFills(self, fillAttrs, slc = []):
-
-        if not slc:
-            slc = (slice(None), slice(None))
-
-        def _setFill(panel):
-            panel.makeFill(
-    def setPlotArgs(self, panelVal, kwargs, slc = []):
-        
-        if not slc:
-            slc = (slice(None), slice(None))
-        
-        def _setArg(panel):
-            panel.plotArgs[panelVal].update(kwargs)
-            return panel
-        
-        setArgNumpy = np.vectorize(_setArg)
-
-        panelsSubset = copy.deepcopy(self.panels[slc])
-        self.panels[slc] = setArgNumpy(panelsSubset)
-        return
-    
-    def setTickArgs(self, axis, which, kwargs, slc = []):
-        
-        if not slc:
-            slc = (slice(None), slice(None))
-        
-        def _setArg(panel):
-            if axis == 'x' or axis == 'both':
-                panel.xtickArgs[which].update(kwargs)
-            if axis == 'y' or axis == 'both':
-                panel.ytickArgs[which].update(kwargs)
-            return panel
-        
-        setArgNumpy = np.vectorize(_setArg)
-
-        panelsSubset = copy.deepcopy(self.panels[slc])
-        self.panels[slc] = setArgNumpy(panelsSubset)
-        return
-    
-    def setLegendArgs(self, kwargs, slc = []):
-        if not slc:
-            slc = (slice(None), slice(None))
-        
-        def _setArg(panel):
-            panel.legendArgs.update(kwargs)
-            return panel
-        
-        setArgNumpy = np.vectorize(_setArg)
-
-        panelsSubset = copy.deepcopy(self.panels[slc])
-        self.panels[slc] = setArgNumpy(panelsSubset)
-        return
-    
-    def fillBetween(self, attrs, slc = []):
-        
-        if not slc:
-            slc = (slice(None), slice(None))
-        
-        def _fillAttr(panel):
-            panel.fillMatch(attrs)
-            return panel
-        
-        fillNumpy = np.vectorize(_fillAttr)
-
-        panelsSubset = copy.deepcopy(self.panels[slc])
-        self.panels[slc] = fillNumpy(panelsSubset)
-
-        return        
+      
     
     ############ INTERFACING WITH FIGURE ############################
 
@@ -247,3 +167,79 @@ class Figrid():
     def ratios(self):
 
         return
+
+
+
+
+
+
+    # # def setFills(self, fillAttrs, slc = []):
+
+    # #     if not slc:
+    # #         slc = (slice(None), slice(None))
+
+    # #     def _setFill(panel):
+    # #         panel.makeFill(
+    
+    # def setPlotArgs(self, panelVal, kwargs, slc = []):
+        
+    #     if not slc:
+    #         slc = (slice(None), slice(None))
+        
+    #     def _setArg(panel):
+    #         panel.plotArgs[panelVal].update(kwargs)
+    #         return panel
+        
+    #     setArgNumpy = np.vectorize(_setArg)
+
+    #     panelsSubset = copy.deepcopy(self.panels[slc])
+    #     self.panels[slc] = setArgNumpy(panelsSubset)
+    #     return
+    
+    # def setTickArgs(self, axis, which, kwargs, slc = []):
+        
+    #     if not slc:
+    #         slc = (slice(None), slice(None))
+        
+    #     def _setArg(panel):
+    #         if axis == 'x' or axis == 'both':
+    #             panel.xtickArgs[which].update(kwargs)
+    #         if axis == 'y' or axis == 'both':
+    #             panel.ytickArgs[which].update(kwargs)
+    #         return panel
+        
+    #     setArgNumpy = np.vectorize(_setArg)
+
+    #     panelsSubset = copy.deepcopy(self.panels[slc])
+    #     self.panels[slc] = setArgNumpy(panelsSubset)
+    #     return
+    
+    # def setLegendArgs(self, kwargs, slc = []):
+    #     if not slc:
+    #         slc = (slice(None), slice(None))
+        
+    #     def _setArg(panel):
+    #         panel.legendArgs.update(kwargs)
+    #         return panel
+        
+    #     setArgNumpy = np.vectorize(_setArg)
+
+    #     panelsSubset = copy.deepcopy(self.panels[slc])
+    #     self.panels[slc] = setArgNumpy(panelsSubset)
+    #     return
+    
+    # def fillBetween(self, attrs, slc = []):
+        
+    #     if not slc:
+    #         slc = (slice(None), slice(None))
+        
+    #     def _fillAttr(panel):
+    #         panel.fillMatch(attrs)
+    #         return panel
+        
+    #     fillNumpy = np.vectorize(_fillAttr)
+
+    #     panelsSubset = copy.deepcopy(self.panels[slc])
+    #     self.panels[slc] = fillNumpy(panelsSubset)
+
+    #     return  
