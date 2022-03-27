@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import numpy as np
 import matplotlib.pyplot as plt
-from figrid.panel import Panel
+from figrid.data_list import DataList
 import copy
 import matplotlib.gridspec as gspec
 
@@ -51,10 +51,14 @@ class Figrid():
         return
     
     def arrange(self, rowAttr, colAttr, panel_length = 3, 
-            panel_bt = 0.1, xborder = 1, yborder = 1, 
+            panel_bt = 0.1, xborder = 0.25, yborder = 0.25, 
             height_ratios = None, width_ratios = None, 
             dpi = 100):
         
+        panel_bt = panel_bt * panel_length
+        xborder = xborder * panel_length
+        yborder = yborder * panel_length
+
         rowValues = self.dl.getAttrVals(rowAttr)
         colValues = self.dl.getAttrVals(colAttr)
         
@@ -118,6 +122,7 @@ class Figrid():
         
         # making panels list
         self.panels = np.empty((nrows, ncols), dtype = object)
+        self.axes = np.empty((nrows, ncols), dtype = object)
 
         for i in range(nrows):
             for j in range(ncols):
@@ -126,10 +131,11 @@ class Figrid():
                 panelAttr[rowAttr] = rowValues[i]
                 panelAttr[colAttr] = colValues[j]
 
-                dlPanel = self.dl.getMatching(panelAttr,
-                        return_as = 'DataList')
+                dlPanel = self.dl.getMatching(panelAttr)
+
                 axis = fig.add_subplot(gs[idx])
-                self.panels[idx] = Panel(dlPanel, axis)
+                self.axes[idx] = axis
+                self.panels[idx] = DataList(copy.deepcopy(dlPanel))
 
         self.fig = fig
         self.panel_length = panel_length
@@ -138,131 +144,119 @@ class Figrid():
         self.yborder = yborder
         self.figsize = [figwidth, figheight]
         return
-
-    ########## INTERFACING WITH PANELS ##############################
     
-    def makeFills(self, attrs, fillKwargs = {}, slc = []):
-        
+    ##### INTERFACING WITH DATA CONTAINERS ##########################
+
+    def setPlotArgs(self, plotArgs, attrs, slc = []):
         if not slc:
             slc = (slice(None), slice(None))
-        
-        def _panelFill(panel):
-            
-            panel.makeFill(attrs, fillKwargs)
-            return panel
 
-        fillnp = np.vectorize(_panelFill)
-        self.panels[slc] = fillnp(self.panels[slc])
-        print(self.panels)
+        def _panelArgs(panel):
+            panel.setArgs(attrs, plotArgs)
+            return
+        
+        argnp = np.vectorize(_panelArgs)
+        argnp(self.panels[slc])
         return
-    
-    def tickParams(self, tickParams, xory = 'both', which = 'both', 
+        
+    ########## INTERFACING WITH PANELS ##############################
+
+    def setTicks(self, tickParams, xory = 'both', which = 'both', 
             slc = []):
         if not slc:
             slc = (slice(None), slice(None))
 
-        def _panelTicks(panel):
-            panel.setTicks(tickParams, xory, which)
-            return panel
+        def _panelTicks(axis):
+            axis.tick_params(axis = xory, which = which, **tickParams)
+            return
         
-        ticknp = np.vectorize(_panelTicks)
-        self.panels[slc] = ticknp(self.panels[slc])
+        ticknp = np.vectorize(_panelTicks, cache = True)
+        ticknp(self.axes[slc])
         return
 
-    def axisParams(self, axisParams, slc = []):
+    def setAxisParams(self, axisParams, slc = []):
         if not slc:
             slc = (slice(None), slice(None))
 
-        def _panelAxis(panel):
-            panel.setAxis(axisParams)
-            return panel
+        def _panelAxis(axis):
+            axis.set(**axisParams)
+            return
 
-        axisnp = np.vectorize(_panelAxis)
-        self.panels[slc] = axisnp(self.panels[slc])
+        axisnp = np.vectorize(_panelAxis, cache = True)
+        axisnp(self.axes[slc])
         return
 
     def drawLegend(self, legendParams, slc = []):
         if not slc:
             slc = (slice(None), slice(None))
 
-        def _panelLegend(panel):
-            panel.drawLegend(legendParams)
-            return panel
+        def _panelLegend(axis):
+            axis.legend(**legendParams)
+            return
 
-        legnp = np.vectorize(_panelLegend)
-        self.panels[slc] = legnp(self.panels[slc])
+        legnp = np.vectorize(_panelLegend, cache = True)
+        legnp(self.axes[slc])
         return
 
-    def plotArgs(self, plotArgs, attrs, slc = []):
-        if not slc:
-            slc = (slice(None), slice(None))
-
-        def _panelArgs(panel):
-            panel.setArgs(attrs, plotArgs)
-            return panel
+    def matchLimits(self, xory = 'both', slc = []):
         
-        argnp = np.vectorize(_panelArgs)
-        self.panels[slc] = argnp(self.panels[slc])
+        def _getlim(ax):
+            xlim = ax.get_xlim()
+            ylim = ax.get_ylim()
+
+            return xlim[0], xlim[1], ylim[0], ylim[1]
+
+        npget = np.vectorize(_getlim, cache=True)
+
+        xmin, xmax, ymin, ymax = npget(self.axes[slc])
+
+        xlim = [np.min(xmin), np.max(xmax)]
+        ylim = [np.min(ymin), np.max(ymax)]
+
+        def _setlim(ax):
+            if xory == 'x' or xory == 'both':
+                ax.set_xlim(xlim)
+            if xory == 'y' or xory == 'both':
+                ax.set_ylim(ylim)
+            
+            return
+        
+        npset = np.vectorize(_setlim, cache = True)
+
+        npset(self.axes[slc])
+
         return
-
-    def shareAxis(self, idx, xory, slc = []):
-        
-        if not slc:
-            slc = (slice(None), slice(None))
-        
-        axisForShare = self.panels[idx].axis
-
-        def _sharex(panel):
-            panel.axis.sharex(axisForShare)
-            return panel
-        def _sharey(panel):
-            panel.axis.sharey(axisForShare)
-            return panel
-        xnp = np.vectorize(_sharex)
-        ynp = np.vectorize(_sharey)
-        if xory == 'x' or xory == 'both':
-            self.panels[slc] = xnp(self.panels[slc])
-        if xory == 'y' or xory == 'both':
-            self.panels[slc] = ynp(self.panels[slc])
-        return
-
-    ############ INTERFACING WITH FIGURE ############################
-
+    
     def setRowLabels(self, rowlabels, pos, textKwargs = {},
             colidx = 0):
-                
-        if not slc:
-            slc = (slice(None), slice(None))
         
         for i in range(self.dim[0]):
-            p = self.panels[i, colidx]
-            p.axis.text(pos[0], pos[1], rowlabels[i],
-                    transform = p.axis.transAxes, **textKwargs)
+            p = self.axes[i, colidx]
+            p.text(pos[0], pos[1], rowlabels[i],
+                    transform = p.transAxes, **textKwargs)
         return
 
     def setColLabels(self, collabels, pos, textKwargs = {},
             rowidx = 0):
-
-        if not slc:
-            slc = (slice(None), slice(None))
         
         for i in range(self.dim[1]):
-            p = self.panels[rowidx, i]
-            p.axis.text(pos[0], pos[1], collabels[i],
-                    transform = p.axis.transAxes, **textKwargs)
+            p = self.axes[rowidx, i]
+            p.text(pos[0], pos[1], collabels[i],
+                    transform = p.transAxes, **textKwargs)
         return
 
-    def text(self, pos, text, textKwargs = {}):
+    ##### INTERFACE WITH THE FIGURE #################################
+
+    def annotateFig(self, text, pos, textKwargs = {}):
         self.fig.text(pos[0], pos[1], text, **textKwargs)
         return
 
     ############ PLOTTING ROUTINES ##################################
     
-    
     def plotPanel(self, rowidx, colidx):
         idx = (rowidx, colidx)
         panel = self.panels[idx]
-        panel.plot()
+        panel.plot(self.axes[idx])
         return
 
     def plot(self):
@@ -271,78 +265,72 @@ class Figrid():
                 self.plotPanel(i, j)
         return
 
+    def makeFills(self, attrs, fillKwargs = {}, slc = []):
+        
+        if not slc:
+            slc = (slice(None), slice(None))
+        
+        def _panelFill(panel):
+            panel.makeFill(attrs, fillKwargs)
+            return
 
+        fillnp = np.vectorize(_panelFill, cache = True)
+        fillnp(self.panels[slc])
+        return
 
+    ##### CONVENIENCE METHODS #######################################
 
+    def makeXLabel(self, text, pos = [], txtargs = {}):
+        if not pos:
+            pos = [0.5, 0]
+        
+        txtargs['ha'] = 'center'
+        txtargs['va'] = 'bottom'
 
-
-    # # def setFills(self, fillAttrs, slc = []):
-
-    # #     if not slc:
-    # #         slc = (slice(None), slice(None))
-
-    # #     def _setFill(panel):
-    # #         panel.makeFill(
+        self.annotateFig(text, pos, txtargs)
+        return
     
-    # def setPlotArgs(self, panelVal, kwargs, slc = []):
+    def makeYLabel(self, text, pos = [], txtargs = {}):
+        if not pos:
+            pos = [0, 0.5]
         
-    #     if not slc:
-    #         slc = (slice(None), slice(None))
-        
-    #     def _setArg(panel):
-    #         panel.plotArgs[panelVal].update(kwargs)
-    #         return panel
-        
-    #     setArgNumpy = np.vectorize(_setArg)
+        txtargs['ha'] = 'right'
+        txtargs['va'] = 'center'
+        txtargs['rotation'] = 'vertical'
 
-    #     panelsSubset = copy.deepcopy(self.panels[slc])
-    #     self.panels[slc] = setArgNumpy(panelsSubset)
-    #     return
+        self.annotateFig(text, pos, txtargs)
+        return
+
+    def setDefaultTicksParams(self):
+        # slice of everything but bottom row
+        topslc = (slice(0, -1), slice(None))
+
+        # slice of everything but leftmost column
+        rightslc = (slice(None), slice(1, None))
+
+        params = {'labelbottom':False}
+        self.setTicks(params, 'x', slc = topslc)
+
+        params = {'labelleft':False}
+        self.setTicks(params, 'y', slc = rightslc)
+        return
     
-    # def setTickArgs(self, axis, which, kwargs, slc = []):
-        
-    #     if not slc:
-    #         slc = (slice(None), slice(None))
-        
-    #     def _setArg(panel):
-    #         if axis == 'x' or axis == 'both':
-    #             panel.xtickArgs[which].update(kwargs)
-    #         if axis == 'y' or axis == 'both':
-    #             panel.ytickArgs[which].update(kwargs)
-    #         return panel
-        
-    #     setArgNumpy = np.vectorize(_setArg)
+    def matchDefaultLimits(self):
+        nrows = self.dim[0]
+        ncols = self.dim[1]
 
-    #     panelsSubset = copy.deepcopy(self.panels[slc])
-    #     self.panels[slc] = setArgNumpy(panelsSubset)
-    #     return
+        # match y-axis limits in each row
+        for i in range(nrows):
+            slc = (i, slice(None))
+            self.matchLimits('y', slc = slc)
+        
+        for j in range(ncols):
+            slc = (slice(None), j)
+            self.matchLimits('x', slc = slc)
+        
+        return
+
+
+    ##### POST-PROCESS METHODS ######################################     
+
     
-    # def setLegendArgs(self, kwargs, slc = []):
-    #     if not slc:
-    #         slc = (slice(None), slice(None))
-        
-    #     def _setArg(panel):
-    #         panel.legendArgs.update(kwargs)
-    #         return panel
-        
-    #     setArgNumpy = np.vectorize(_setArg)
-
-    #     panelsSubset = copy.deepcopy(self.panels[slc])
-    #     self.panels[slc] = setArgNumpy(panelsSubset)
-    #     return
-    
-    # def fillBetween(self, attrs, slc = []):
-        
-    #     if not slc:
-    #         slc = (slice(None), slice(None))
-        
-    #     def _fillAttr(panel):
-    #         panel.fillMatch(attrs)
-    #         return panel
-        
-    #     fillNumpy = np.vectorize(_fillAttr)
-
-    #     panelsSubset = copy.deepcopy(self.panels[slc])
-    #     self.panels[slc] = fillNumpy(panelsSubset)
-
-    #     return  
