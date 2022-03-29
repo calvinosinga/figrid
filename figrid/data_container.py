@@ -14,20 +14,13 @@ class DataContainer():
         self.plotFunc = self._defaultPlot
         return
     
-    ########### DATA ACCESS/MANAGEMENT ##############################
+    ##### ATTR ACCESS/MANAGEMENT ####################################
 
     def get(self, key):
         try:
             return self.attrs[key]
         except KeyError:
             return self.default_key
-    
-    def getData(self):
-        return self.data
-    
-    def setData(self, data):
-        self.data = data
-        return
     
     def add(self, key, attr_value, overwrite = True):
         if not key in self.attrs or overwrite:
@@ -39,7 +32,16 @@ class DataContainer():
             self.add(k, v, overwrite)
         return
     
-    ########### USED FOR ORGANIZING FIGURE ###########################
+    ##### DATA ACCESS/MANAGEMENT ####################################
+
+    def getData(self):
+        return self.data
+    
+    def setData(self, data):
+        self.data = data
+        return
+    
+    ##### USED FOR ORGANIZING FIGURE ################################
 
     def isMatch(self, desired_attrs):
         isMatch = True
@@ -53,10 +55,9 @@ class DataContainer():
 
         return isMatch
     
-    ######### PLOT DATA ############################################
+    ##### PLOT DATA ACCESS/MANAGEMENT ###############################
 
     def setFunc(self, func):
-        #print('setting function')
         self.plotFunc = func
         return
     
@@ -65,11 +66,12 @@ class DataContainer():
         return
     
     def _defaultPlot(self, ax, data, kwargs):
-        #print('called default plot function')
         ax.plot(data[0], data[1], **kwargs)
-
         return
     
     def setArgs(self, kwargs):
         self.plotArgs.update(kwargs)
         return
+    
+    def getArgs(self):
+        return self.plotArgs

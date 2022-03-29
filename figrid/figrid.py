@@ -393,3 +393,6 @@ class Figrid():
         return
 
         
+    def save(self, path):
+        self.fig.savefig(path)
+        return
