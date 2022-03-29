@@ -333,4 +333,6 @@ class Figrid():
 
     ##### POST-PROCESS METHODS ######################################     
 
-    
+    def combineFigrids(self, figrid, loc = 'bottom'):
+        
+
