@@ -77,6 +77,27 @@ class Figrid():
 
         nrows = self.dim[0]
         ncols = self.dim[1]
+        
+        self._makeFig(nrows, ncols, panel_length, panel_bt,
+            xborder, yborder, height_ratios, width_ratios, dpi)
+        
+        self.panels = np.empty((nrows, ncols), dtype = object)
+        for i in range(nrows):
+            for j in range(ncols):
+                
+                panelAttr = {}
+                panelAttr[rowAttr] = rowValues[i]
+                panelAttr[colAttr] = colValues[j]
+
+                dlPanel = self.dl.getMatching(panelAttr)
+                
+                self.panels[i, j] = DataList(copy.deepcopy(dlPanel))
+        
+        return
+
+
+    def _makeFig(self, nrows, ncols, panel_length, panel_bt,
+            xborder, yborder, height_ratios, width_ratios, dpi):
 
         if isinstance(xborder, float) or isinstance(xborder, int):
             xborder = [xborder, xborder]
@@ -120,22 +141,15 @@ class Figrid():
                 wspace=panel_bt[0]*ncols/figwidth, hspace=panel_bt[1]*nrows/figheight,
                 height_ratios = height_ratios, width_ratios = width_ratios)
         
-        # making panels list
-        self.panels = np.empty((nrows, ncols), dtype = object)
+        # making axes
         self.axes = np.empty((nrows, ncols), dtype = object)
 
         for i in range(nrows):
             for j in range(ncols):
                 idx = (i, j)
-                panelAttr = {}
-                panelAttr[rowAttr] = rowValues[i]
-                panelAttr[colAttr] = colValues[j]
-
-                dlPanel = self.dl.getMatching(panelAttr)
 
                 axis = fig.add_subplot(gs[idx])
                 self.axes[idx] = axis
-                self.panels[idx] = DataList(copy.deepcopy(dlPanel))
 
         self.fig = fig
         self.panel_length = panel_length
@@ -143,6 +157,7 @@ class Figrid():
         self.xborder = xborder
         self.yborder = yborder
         self.figsize = [figwidth, figheight]
+        self.dpi = dpi
         return
     
     ##### INTERFACING WITH DATA CONTAINERS ##########################
@@ -334,5 +349,45 @@ class Figrid():
     ##### POST-PROCESS METHODS ######################################     
 
     def combineFigrids(self, figrid, loc = 'bottom'):
-        
+        nrows = self.dim[0]
+        ncols = self.dim[1]
 
+        if loc == 'bottom':
+            nrows += figrid.dim[0]
+            newslc = (slice(-1, -figrid.dim[0]-1, -1), slice(None))
+            selfslc = (slice(0, -figrid.dim[0]), slice(None))
+        elif loc == 'top':
+            nrows += figrid.dim[0]
+            newslc = (slice(0, figrid.dim[0]), slice(None))
+            selfslc = (slice(figrid.dim[0], None), slice(None))
+
+        elif loc == 'right':
+            ncols += figrid.dim[1]
+            newslc = (slice(None), slice(-1, -figrid.dim[1]-1, -1))
+            selfslc = (slice(None), slice(0, -figrid.dim[1]))
+        elif loc == 'left':
+            ncols += figrid.dim[1]
+            newslc = (slice(None), slice(0, figrid.dim[1]))
+            selfslc = (slice(None), slice(figrid.dim[1], None))
+        else:
+            raise ValueError('not accepted location')
+        
+        height_ratios = [self.panel_length for i in range(nrows)]
+        width_ratios = [self.panel_length for i in range(ncols)]
+
+        if loc == 'bottom' or loc == 'top':
+            height_ratios[newslc[0]] = figrid.panel_length
+        elif loc == 'left' or loc == 'right':
+            height_ratios[newslc[1]] = figrid.panel_length
+
+        self._makeFig(nrows, ncols, self.panel_length, self.panel_bt,
+            self.xborder, self.yborder, height_ratios, width_ratios,
+            self.dpi)
+
+        newpanels = np.empty((nrows, ncols), dtype = object)
+        newpanels[selfslc] = self.panels.copy()
+        newpanels[newslc] = figrid.panels.copy()
+        self.panels = newpanels
+        return
+
+        
