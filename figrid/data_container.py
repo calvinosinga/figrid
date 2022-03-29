@@ -56,7 +56,7 @@ class DataContainer():
     ######### PLOT DATA ############################################
 
     def setFunc(self, func):
-        print('setting function')
+        #print('setting function')
         self.plotFunc = func
         return
     
@@ -65,7 +65,7 @@ class DataContainer():
         return
     
     def _defaultPlot(self, ax, data, kwargs):
-        print('called default plot function')
+        #print('called default plot function')
         ax.plot(data[0], data[1], **kwargs)
 
         return

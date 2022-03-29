@@ -322,12 +322,14 @@ class Figrid():
 
         # slice of everything but leftmost column
         rightslc = (slice(None), slice(1, None))
-
-        params = {'labelbottom':False}
-        self.setTicks(params, 'x', slc = topslc)
-
-        params = {'labelleft':False}
-        self.setTicks(params, 'y', slc = rightslc)
+        
+        if self.dim[0] > 1:
+            params = {'labelbottom':False}
+            self.setTicks(params, 'x', slc = topslc)
+        
+        if self.dim[1] > 1:
+            params = {'labelleft':False}
+            self.setTicks(params, 'y', slc = rightslc)
         return
     
     def matchDefaultLimits(self):
