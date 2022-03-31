@@ -74,51 +74,31 @@ class DataList():
     ##### POST-PROCESS DATA #########################################
 
     def makeFill(self, attrs, fillkwargs):
-        attrs['post_process'] = 'no key found'
+        attrs['figrid_process'] = 'no key found'
         matches = self.getMatching(attrs)
         data = matches[0].getData()
         x = data[0]
         y = data[1]
         ymins = np.ones_like(y) * y
         ymaxs = np.ones_like(y) * y
-        plotArgs = {}
         for m in matches:
             data = m.getData()
             y = data[1]
             ymins = np.minimum(y, ymins)
             ymaxs = np.maximum(y, ymaxs)
-            if not plotArgs:
-                plotArgs = m.getArgs()
-            else:
-                matchArgs = m.getArgs()
-                rmArgs = []
-                for k, v in plotArgs.items():
-                    if k in matchArgs:
-                        if not v == matchArgs[k]:
-                            rmArgs.append(k)
-                    else:
-                        rmArgs.append(k)
-                
-                for rm in rmArgs:
-                    del plotArgs[rm]
-                
+            
             args = {'visible':False, 'zorder' : -1, 
                     'label':'_nolegend_'}
             m.setArgs(args)
         
-        if plotArgs:
-            print('filled components had shared plot arguments:')
-            print(plotArgs)
-        
         filldc = DataContainer([x, ymins, ymaxs])
-        attrs['post_process'] = 'fill'
+        attrs['figrid_process'] = 'fill'
         filldc.update(attrs)
 
         def _plotFill(ax, data, kwargs):
             ax.fill_between(data[0], data[1], data[2], **kwargs)
             return
         
-        fillkwargs.update(plotArgs)
         filldc.setFunc(_plotFill)
         filldc.setArgs(fillkwargs)
         self.append(filldc)

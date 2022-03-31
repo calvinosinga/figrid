@@ -71,13 +71,9 @@ class Figrid():
         nrows = len(rowValues)
         ncols = len(colValues)
         
-        self.dim = [nrows, ncols]
         self.rowValues = rowValues
         self.colValues = colValues
-
-        nrows = self.dim[0]
-        ncols = self.dim[1]
-        
+ 
         self._makeFig(nrows, ncols, panel_length, panel_bt,
             xborder, yborder, height_ratios, width_ratios, dpi)
         
@@ -158,6 +154,7 @@ class Figrid():
         self.yborder = yborder
         self.figsize = [figwidth, figheight]
         self.dpi = dpi
+        self.dim = [nrows, ncols]
         return
     
     ##### INTERFACING WITH DATA CONTAINERS ##########################
@@ -356,8 +353,8 @@ class Figrid():
 
         if loc == 'bottom':
             nrows += figrid.dim[0]
-            newslc = (slice(-1, -figrid.dim[0]-1, -1), slice(None))
-            selfslc = (slice(0, -figrid.dim[0]), slice(None))
+            newslc = (slice(self.dim[0], None), slice(None))
+            selfslc = (slice(0, self.dim[0]), slice(None))
         elif loc == 'top':
             nrows += figrid.dim[0]
             newslc = (slice(0, figrid.dim[0]), slice(None))
@@ -365,8 +362,8 @@ class Figrid():
 
         elif loc == 'right':
             ncols += figrid.dim[1]
-            newslc = (slice(None), slice(-1, -figrid.dim[1]-1, -1))
-            selfslc = (slice(None), slice(0, -figrid.dim[1]))
+            newslc = (slice(None), slice(self.dim[1], None))
+            selfslc = (slice(None), slice(0, self.dim[1]))
         elif loc == 'left':
             ncols += figrid.dim[1]
             newslc = (slice(None), slice(0, figrid.dim[1]))
@@ -374,10 +371,10 @@ class Figrid():
         else:
             raise ValueError('not accepted location')
         
-        height_ratios = [self.panel_length for i in range(nrows)]
-        width_ratios = [self.panel_length for i in range(ncols)]
-
+        height_ratios = np.ones(nrows) * self.panel_length
+        width_ratios = np.ones(ncols) * self.panel_length
         if loc == 'bottom' or loc == 'top':
+
             height_ratios[newslc[0]] = figrid.panel_length
         elif loc == 'left' or loc == 'right':
             height_ratios[newslc[1]] = figrid.panel_length
