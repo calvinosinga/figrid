@@ -423,7 +423,11 @@ class Figrid():
         self.panels = newpanels
         return
 
-        
+    def clf(self):
+        plt.clf()
+        plt.close()
+        return
+    
     def save(self, path):
         self.fig.savefig(path)
         return
