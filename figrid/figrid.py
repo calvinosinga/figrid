@@ -299,6 +299,18 @@ class Figrid():
                 self.plotPanel(i, j)
         return
 
+    def setFunc(self, attrs, func, slc = []):
+        if not slc:
+            slc = (slice(None), slice(None))
+        
+        def _panelFunc(panel):
+            panel.setFunc(attrs, func)
+            return
+        
+        funcnp = np.vectorize(_panelFunc, cache = True)
+        funcnp(self.panels[slc])
+        return
+    
     def makeFills(self, attrs, fillKwargs = {}, slc = []):
         
         if not slc:
