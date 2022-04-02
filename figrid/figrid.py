@@ -257,6 +257,28 @@ class Figrid():
                     transform = p.transAxes, **textKwargs)
         return
 
+    def getMask(self, rowVal = '', colVal = ''):
+        def _get1DMask(val, dimValues, axis):
+            if val == '':
+                mask = np.ones(self.dim, dtype = bool)
+            else:
+                mask = np.zeros(self.dim, dtype = bool)
+
+            try:
+                idx = dimValues.index(val)
+                if axis == 0:
+                    mask[idx, :] = 1
+                else:
+                    mask[:, idx] = 1
+                return mask
+            except ValueError:
+                return mask
+                
+        
+        rowMask = _get1DMask(rowVal, self.rowValues, 0)
+        colMask = _get1DMask(colVal, self.colValues, 1)
+        return rowMask & colMask
+    
     ##### INTERFACE WITH THE FIGURE #################################
 
     def annotateFig(self, text, pos, textKwargs = {}):
