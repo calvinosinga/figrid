@@ -76,33 +76,34 @@ class DataList():
     def makeFill(self, attrs, fillkwargs):
         attrs['figrid_process'] = 'no key found'
         matches = self.getMatching(attrs)
-        data = matches[0].getData()
-        x = data[0]
-        y = data[1]
-        ymins = np.ones_like(y) * y
-        ymaxs = np.ones_like(y) * y
-        for m in matches:
-            data = m.getData()
+        if len(matches) >= 1:
+            data = matches[0].getData()
+            x = data[0]
             y = data[1]
-            ymins = np.minimum(y, ymins)
-            ymaxs = np.maximum(y, ymaxs)
+            ymins = np.ones_like(y) * y
+            ymaxs = np.ones_like(y) * y
+            for m in matches:
+                data = m.getData()
+                y = data[1]
+                ymins = np.minimum(y, ymins)
+                ymaxs = np.maximum(y, ymaxs)
+                
+                args = {'visible':False, 'zorder' : -1, 
+                        'label':'_nolegend_'}
+                m.setArgs(args)
             
-            args = {'visible':False, 'zorder' : -1, 
-                    'label':'_nolegend_'}
-            m.setArgs(args)
-        
-        filldc = DataContainer([x, ymins, ymaxs])
-        attrs['figrid_process'] = 'fill'
-        filldc.update(attrs)
+            filldc = DataContainer([x, ymins, ymaxs])
+            attrs['figrid_process'] = 'fill'
+            filldc.update(attrs)
 
-        def _plotFill(ax, data, kwargs):
-            ax.fill_between(data[0], data[1], data[2], **kwargs)
-            return
-        
-        filldc.setFunc(_plotFill)
-        filldc.setArgs(fillkwargs)
-        self.append(filldc)
-        return filldc
+            def _plotFill(ax, data, kwargs):
+                ax.fill_between(data[0], data[1], data[2], **kwargs)
+                return
+            
+            filldc.setFunc(_plotFill)
+            filldc.setArgs(fillkwargs)
+            self.append(filldc)
+        return
     
     ##### INTERFACING WITH DATA CONTAINERS ##########################
 

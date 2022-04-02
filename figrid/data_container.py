@@ -58,7 +58,6 @@ class DataContainer():
     ##### PLOT DATA ACCESS/MANAGEMENT ###############################
 
     def setFunc(self, func):
-        print('new function set')
         self.plotFunc = func
         return
     
