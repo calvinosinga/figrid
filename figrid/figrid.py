@@ -50,8 +50,8 @@ class Figrid():
             self.colOrderFunc = self._defaultOrder
         return
     
-    def arrange(self, rowAttr, colAttr, panel_length = 3, 
-            panel_bt = 0.1, xborder = 0.25, yborder = 0.25, 
+    def arrange(self, rowAttr = '', colAttr = '', panel_length = 3, 
+            panel_bt = 0.11, xborder = 0.33, yborder = 0.33, 
             height_ratios = None, width_ratios = None, 
             dpi = 100):
         
@@ -67,13 +67,13 @@ class Figrid():
 
         print('The row values for %s: %s'%(rowAttr, str(rowValues)))
         print('The column values for %s: %s'%(colAttr, str(colValues)))
-
-        nrows = len(rowValues)
-        ncols = len(colValues)
+        
+        nrows = max(1, len(rowValues))
+        ncols = max(1, len(colValues))
         
         self.rowValues = rowValues
         self.colValues = colValues
- 
+        
         self._makeFig(nrows, ncols, panel_length, panel_bt,
             xborder, yborder, height_ratios, width_ratios, dpi)
         
@@ -126,11 +126,6 @@ class Figrid():
         
         fig = plt.figure(figsize=(figwidth, figheight), dpi = dpi)
 
-        if height_ratios is None:
-            height_ratios = np.ones(nrows)*panel_length
-        
-        if width_ratios is None:
-            width_ratios = np.ones(ncols)*panel_length
         # creating gridspec
         gs = gspec.GridSpec(nrows, ncols, left= xborder[0]/figwidth, right=1-xborder[1]/figwidth,
                 top=1-yborder[1]/figheight, bottom=yborder[0]/figheight,
@@ -148,7 +143,8 @@ class Figrid():
                 self.axes[idx] = axis
 
         self.fig = fig
-        self.panel_length = panel_length
+        self.panel_widths = width_ratios
+        self.panel_heights = height_ratios
         self.panel_bt = panel_bt
         self.xborder = xborder
         self.yborder = yborder
@@ -340,7 +336,7 @@ class Figrid():
         if not pos:
             pos = [0, 0.5]
         
-        txtargs['ha'] = 'right'
+        txtargs['ha'] = 'left'
         txtargs['va'] = 'center'
         txtargs['rotation'] = 'vertical'
 
@@ -404,17 +400,20 @@ class Figrid():
             selfslc = (slice(None), slice(figrid.dim[1], None))
         else:
             raise ValueError('not accepted location')
-        
-        height_ratios = np.ones(nrows) * self.panel_length
-        width_ratios = np.ones(ncols) * self.panel_length
+        heights = np.zeros(nrows)
+        widths = np.zeros(ncols)
+        heights[selfslc[0]] = self.panel_heights
+        widths[selfslc[1]] = self.panel_widths
         if loc == 'bottom' or loc == 'top':
 
-            height_ratios[newslc[0]] = figrid.panel_length
+            heights[newslc[0]] = figrid.panel_heights
         elif loc == 'left' or loc == 'right':
-            height_ratios[newslc[1]] = figrid.panel_length
-
-        self._makeFig(nrows, ncols, self.panel_length, self.panel_bt,
-            self.xborder, self.yborder, height_ratios, width_ratios,
+            widths[newslc[1]] = figrid.panel_widths
+        print(heights)
+        print(widths)
+        pl = max(np.max(heights), np.max(widths))
+        self._makeFig(nrows, ncols, pl, self.panel_bt,
+            self.xborder, self.yborder, heights, widths,
             self.dpi)
 
         newpanels = np.empty((nrows, ncols), dtype = object)
