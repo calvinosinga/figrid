@@ -50,18 +50,41 @@ class Figrid():
             self.colOrderFunc = self._defaultOrder
         return
     
-    def arrange(self, rowAttr = '', colAttr = '', panel_length = 3, 
+    def arrange(self, rowAttr = [], colAttr = [], panel_length = 3, 
             panel_bt = 0.11, xborder = 0.33, yborder = 0.33, 
             height_ratios = None, width_ratios = None, 
             dpi = 100):
         
+        # panel_length gives the values in inches
+        # the other values should scale with panel_length
+        # so they are given as fractions of panel_length
+        
+        # if rowAttr colAttr are strings, convert them to lists
+        rowAttr = list(rowAttr)
+        colAttr = list(colAttr)
+
         panel_bt = panel_bt * panel_length
         xborder = xborder * panel_length
         yborder = yborder * panel_length
-
-        rowValues = self.dl.getAttrVals(rowAttr)
-        colValues = self.dl.getAttrVals(colAttr)
         
+        rowValues = []
+        colValues = []
+        valToAttr = {}
+
+        for ra in rowAttr:
+            vals = self.dl.getAttrVals(ra)
+            rowValues.extend(vals)
+            for v in vals:
+                valToAttr[v] = ra
+        
+
+        for ca in colAttr:
+            vals = self.dl.getAttrVals(ca)
+            colValues.extend(vals)
+            for v in vals:
+                valToAttr[v] = ca
+
+
         rowValues = self.rowOrderFunc(rowValues)
         colValues = self.colOrderFunc(colValues)
 
@@ -73,89 +96,155 @@ class Figrid():
         
         self.rowValues = rowValues
         self.colValues = colValues
-        
+
         self._makeFig(nrows, ncols, panel_length, panel_bt,
             xborder, yborder, height_ratios, width_ratios, dpi)
         
         self.panels = np.empty((nrows, ncols), dtype = object)
         for i in range(nrows):
             for j in range(ncols):
-                
-                panelAttr = {}
-                panelAttr[rowAttr] = rowValues[i]
-                panelAttr[colAttr] = colValues[j]
+                attr_for_row = valToAttr[rowValues[i]]
+                attr_for_col = valToAttr[colValues[j]]
+                rowColAttr = {}
+                rowColAttr[attr_for_row] = rowValues[i]
+                rowColAttr[attr_for_col] = colValues[j]
 
-                dlPanel = self.dl.getMatching(panelAttr)
+                dlPanel = self.dl.getMatching(rowColAttr)
                 
                 self.panels[i, j] = DataList(copy.deepcopy(dlPanel))
         
         return
 
 
-    def _makeFig(self, nrows, ncols, panel_length, panel_bt,
-            xborder, yborder, height_ratios, width_ratios, dpi):
+    def _makeFig(self, nrows, ncols, panel_length, wspace,
+            hspace, xborder, yborder, height_ratios = None, 
+            width_ratios = None, dpi = 100):
+        """
+        Make a gridspec and corresponding figure according to the
+        given specifications.
 
+        Args:
+            nrows (int): number of rows
+            ncols (int): number of columns
+            panel_length (float): size of panel in inches.
+                Used to scale the other inputs.
+            wspace (float, np.array): the width of the padding
+                between panels, as a fraction of panel_length.
+                If a float, applies that value to all padding.
+                An array must have dimensions (ncols - 1).
+            hspace (float, np.array): the height of the padding
+                between panels, as a fraction of panel_length.
+                If a float, applies that value to all padding.
+                An array must have dimensions (nrows - 1).
+            xborder (float, np.array): the size of the padding
+                on the left and right borders of the figure.
+                As a fraction of panel_length. If given a float,
+                applies that value to both borders.
+            yborder (float, np.array): the size of the padding
+                on the top and bottom borders of the figure.
+                As a fraction of panel_length. If given a float,
+                applies that value to both borders.
+            height_ratios (list, np.array, optional): the 
+                respective heights of each the panels in the 
+                corresponding rows. Must have dimensions (nrows). 
+                As a fraction of panel_length. 
+            width_ratios (list, np.array, optional): the respective heights
+                of each the panels in the corresponding rows. Must
+                have dimensions (nrows). As a fraction of 
+                panel_length. 
+            dpi (float, optional): dots per inch, the resolution of the
+                figure.
+        """
+
+        # default behavior for borders
         if isinstance(xborder, float) or isinstance(xborder, int):
-            xborder = [xborder, xborder]
+            xborder = np.array([xborder, xborder])
         if isinstance(yborder, float) or isinstance(yborder, int):
-            yborder = [yborder, yborder]
-        if isinstance(panel_bt, float) or isinstance(panel_bt, int):
-            panel_bt = [panel_bt, panel_bt]
+            yborder = np.array([yborder, yborder])
+
+        # default behavior for padding
+        paddim = [max(1, ncols - 1), max(1, nrows - 1)]
+        if isinstance(wspace, float) or isinstance(wspace, int):
+            wspace = np.ones(paddim[0]) * wspace
+        if isinstance(hspace, float) or isinstance(hspace, int):
+            hspace = np.ones(paddim[1]) * hspace
+
+        # default behavior for ratios
         if height_ratios is None:
-            height_ratios = np.ones(nrows) * panel_length
+            height_ratios = np.ones(nrows)
         else:
             # renormalize
             maxval = np.max(height_ratios)
             height_ratios /= maxval
-            height_ratios *= panel_length
 
         if width_ratios is None:
-            width_ratios = np.ones(ncols) * panel_length
+            width_ratios = np.ones(ncols)
         else:
             #renormalize
             maxval = np.max(width_ratios)
             width_ratios /= maxval
-            width_ratios *= panel_length
-        
+
+        #TODO handle input errors with panelbt, height/width ratios
+
         # creating Figure object
 
-        figwidth = np.sum(width_ratios) + panel_bt[0] * (ncols - 1) + \
-                xborder[0] + xborder[1]
-        figheight = np.sum(height_ratios) + panel_bt[1] * (nrows - 1) + \
-                yborder[0] + yborder[1]
+        # convert everything into units of inches
+        width_ratios *= panel_length; height_ratios *= panel_length
+        xborder *= panel_length; yborder *= panel_length
+        wspace *= panel_length; hspace *= panel_length
         
+        total_widths = np.sum(width_ratios)
+        total_wspace = np.sum(wspace)
+        wborder_space = np.sum(xborder)
+
+        total_heights = np.sum(height_ratios)
+        total_hspace = np.sum(hspace)
+        hborder_space = np.sum(yborder)
+        
+        # get figwidth and figheight in inches
+        figwidth = total_widths + total_wspace + wborder_space
+        figheight = total_heights + total_hspace + hborder_space 
+
         fig = plt.figure(figsize=(figwidth, figheight), dpi = dpi)
-
-        # creating gridspec
-        gs = gspec.GridSpec(nrows, ncols, left= xborder[0]/figwidth, right=1-xborder[1]/figwidth,
-                top=1-yborder[1]/figheight, bottom=yborder[0]/figheight,
-                wspace=panel_bt[0]*ncols/figwidth, hspace=panel_bt[1]*nrows/figheight,
-                height_ratios = height_ratios, width_ratios = width_ratios)
-        
-        # making axes
-        self.axes = np.empty((nrows, ncols), dtype = object)
-
+                
+        axes = np.empty((nrows, ncols), dtype = object)
         for i in range(nrows):
             for j in range(ncols):
-                idx = (i, j)
+                # a label makes each axis unique - otherwise mpl will
+                # return a previously made axis
+                
+                ax = fig.add_subplot(label = str((i, j)))
+                
+                height = height_ratios[i]
+                width = width_ratios[j]
+                
+                total_hspace = np.sum(hspace[:i])
+                total_heights = np.sum(height_ratios[:i+1])
+                total_widths = np.sum(width_ratios[:j])
+                total_wspace = np.sum(wspace[:j])
+                
+                bot = figheight - yborder[0] - total_hspace - total_heights
+                left = xborder[0] + total_widths + total_wspace
+                
 
-                axis = fig.add_subplot(gs[idx])
-                self.axes[idx] = axis
-
+                axdim = [left / figwidth, bot / figheight, 
+                        width / figwidth, height / figheight]
+                ax.set_position(axdim)
+                axes[i, j] = ax
+                
         self.fig = fig
-        self.panel_widths = width_ratios
-        self.panel_heights = height_ratios
-        self.panel_bt = panel_bt
-        self.xborder = xborder
-        self.yborder = yborder
+        self.axes = axes
+        self.xborder = xborder / figwidth
+        self.yborder = yborder / figheight
+        self.wspace = wspace / figwidth
+        self.hspace = hspace / figheight
         self.figsize = [figwidth, figheight]
-        self.dpi = dpi
-        self.dim = [nrows, ncols]
-        return
+        self.panel_length = panel_length
+        return fig
     
     ##### INTERFACING WITH DATA CONTAINERS ##########################
 
-    def setPlotArgs(self, plotArgs, attrs, slc = []):
+    def setPlotArgs(self, attrs, plotArgs, slc = []):
         if not slc:
             slc = (slice(None), slice(None))
 
@@ -281,6 +370,18 @@ class Figrid():
         self.fig.text(pos[0], pos[1], text, **textKwargs)
         return
 
+    # def adjustPanelSpacing(self, xory, inbt, new_panel_bt):
+    #     xborder = self.xborder; yborder = self.yborder
+    #     figwidth = self.figsize[0]; figheight = self.figsize[1]
+
+    #     if xory == 'x' or xory == 'both':
+    #         gs = gspec.GridSpec(inbt[0], self.dim[1], left= xborder[0]/figwidth, right=0,
+    #                 top=1-yborder[1]/figheight, bottom=yborder[0]/figheight,
+    #                 wspace=panel_bt[0]*ncols/figwidth, hspace=panel_bt[1]*nrows/figheight,
+    #                 height_ratios = height_ratios, width_ratios = width_ratios)
+    #         gsright = gspec.GridSpec(self.dim[0] - inbt[0], self.dim[1], right = )
+            
+    #     return
     ############ PLOTTING ROUTINES ##################################
     
     def plotPanel(self, rowidx, colidx):

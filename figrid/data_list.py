@@ -26,6 +26,10 @@ class DataList():
         self.dclist.append(dataContainer)
         return
     
+    def extend(self, dataContList):
+        self.dclist.extend(dataContList)
+        return
+        
     def getAttrs(self):
         unique_attr = []
         for dc in self.dclist:
