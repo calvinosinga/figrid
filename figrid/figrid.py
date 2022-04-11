@@ -255,8 +255,8 @@ class Figrid():
     
     ##### INTERFACING WITH DATA CONTAINERS ##########################
 
-    def setPlotArgs(self, attrs, plotArgs, slc = []):
-        if not slc:
+    def setPlotArgs(self, attrs, plotArgs, slc = None):
+        if not slc is None:
             slc = (slice(None), slice(None))
 
         def _panelArgs(panel):
@@ -270,8 +270,8 @@ class Figrid():
     ########## INTERFACING WITH PANELS ##############################
 
     def setTicks(self, tickParams, xory = 'both', which = 'both', 
-            slc = []):
-        if not slc:
+            slc = None):
+        if not slc is None:
             slc = (slice(None), slice(None))
 
         def _panelTicks(axis):
@@ -282,8 +282,8 @@ class Figrid():
         ticknp(self.axes[slc])
         return
 
-    def setAxisParams(self, axisParams, slc = []):
-        if not slc:
+    def setAxisParams(self, axisParams, slc = None):
+        if not slc is None:
             slc = (slice(None), slice(None))
 
         def _panelAxis(axis):
@@ -294,8 +294,8 @@ class Figrid():
         axisnp(self.axes[slc])
         return
 
-    def drawLegend(self, legendParams, slc = []):
-        if not slc:
+    def drawLegend(self, legendParams, slc = None):
+        if not slc is None:
             slc = (slice(None), slice(None))
 
         def _panelLegend(axis):
@@ -306,7 +306,7 @@ class Figrid():
         legnp(self.axes[slc])
         return
 
-    def matchLimits(self, xory = 'both', slc = []):
+    def matchLimits(self, xory = 'both', slc = None):
         
         def _getlim(ax):
             xlim = ax.get_xlim()
@@ -407,8 +407,8 @@ class Figrid():
                 self.plotPanel(i, j)
         return
 
-    def setFunc(self, attrs, func, slc = []):
-        if not slc:
+    def setFunc(self, attrs, func, slc = None):
+        if not slc is None:
             slc = (slice(None), slice(None))
         
         def _panelFunc(panel):
@@ -419,9 +419,9 @@ class Figrid():
         funcnp(self.panels[slc])
         return
     
-    def makeFills(self, attrs, fillKwargs = {}, slc = []):
+    def makeFills(self, attrs, fillKwargs = {}, slc = None):
         
-        if not slc:
+        if not slc is None:
             slc = (slice(None), slice(None))
         
         def _panelFill(panel):
