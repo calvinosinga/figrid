@@ -256,7 +256,7 @@ class Figrid():
     ##### INTERFACING WITH DATA CONTAINERS ##########################
 
     def setPlotArgs(self, attrs, plotArgs, slc = None):
-        if not slc is None:
+        if slc is None:
             slc = (slice(None), slice(None))
 
         def _panelArgs(panel):
@@ -271,7 +271,7 @@ class Figrid():
 
     def setTicks(self, tickParams, xory = 'both', which = 'both', 
             slc = None):
-        if not slc is None:
+        if slc is None:
             slc = (slice(None), slice(None))
 
         def _panelTicks(axis):
@@ -283,7 +283,7 @@ class Figrid():
         return
 
     def setAxisParams(self, axisParams, slc = None):
-        if not slc is None:
+        if slc is None:
             slc = (slice(None), slice(None))
 
         def _panelAxis(axis):
@@ -295,7 +295,7 @@ class Figrid():
         return
 
     def drawLegend(self, legendParams, slc = None):
-        if not slc is None:
+        if slc is None:
             slc = (slice(None), slice(None))
 
         def _panelLegend(axis):
@@ -408,7 +408,7 @@ class Figrid():
         return
 
     def setFunc(self, attrs, func, slc = None):
-        if not slc is None:
+        if slc is None:
             slc = (slice(None), slice(None))
         
         def _panelFunc(panel):
@@ -421,7 +421,7 @@ class Figrid():
     
     def makeFills(self, attrs, fillKwargs = {}, slc = None):
         
-        if not slc is None:
+        if slc is None:
             slc = (slice(None), slice(None))
         
         def _panelFill(panel):
