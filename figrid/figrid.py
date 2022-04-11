@@ -51,7 +51,7 @@ class Figrid():
         return
     
     def arrange(self, rowAttr = [], colAttr = [], panel_length = 3, 
-            panel_bt = 0.11, xborder = 0.33, yborder = 0.33, 
+            wspace = 0.11, hspace = 0.11, xborder = 0.33, yborder = 0.33, 
             height_ratios = None, width_ratios = None, 
             dpi = 100):
         
@@ -60,12 +60,10 @@ class Figrid():
         # so they are given as fractions of panel_length
         
         # if rowAttr colAttr are strings, convert them to lists
-        rowAttr = list(rowAttr)
-        colAttr = list(colAttr)
-
-        panel_bt = panel_bt * panel_length
-        xborder = xborder * panel_length
-        yborder = yborder * panel_length
+        if not isinstance(rowAttr, list):
+            rowAttr = [rowAttr]
+        if not isinstance(colAttr, list):
+            colAttr = [colAttr]
         
         rowValues = []
         colValues = []
@@ -97,17 +95,22 @@ class Figrid():
         self.rowValues = rowValues
         self.colValues = colValues
 
-        self._makeFig(nrows, ncols, panel_length, panel_bt,
+        self._makeFig(nrows, ncols, panel_length, wspace, hspace,
             xborder, yborder, height_ratios, width_ratios, dpi)
         
         self.panels = np.empty((nrows, ncols), dtype = object)
         for i in range(nrows):
             for j in range(ncols):
-                attr_for_row = valToAttr[rowValues[i]]
-                attr_for_col = valToAttr[colValues[j]]
+
                 rowColAttr = {}
-                rowColAttr[attr_for_row] = rowValues[i]
-                rowColAttr[attr_for_col] = colValues[j]
+                if j < len(colValues):
+                    
+                    attr_for_col = valToAttr[colValues[j]]
+                    rowColAttr[attr_for_col] = colValues[j]
+
+                if i < len(rowValues):
+                    attr_for_row = valToAttr[rowValues[i]]
+                    rowColAttr[attr_for_row] = rowValues[i]
 
                 dlPanel = self.dl.getMatching(rowColAttr)
                 
@@ -161,6 +164,10 @@ class Figrid():
             xborder = np.array([xborder, xborder])
         if isinstance(yborder, float) or isinstance(yborder, int):
             yborder = np.array([yborder, yborder])
+        if isinstance(xborder, list):
+            xborder = np.array(xborder)
+        if isinstance(yborder, list):
+            yborder = np.array(yborder)
 
         # default behavior for padding
         paddim = [max(1, ncols - 1), max(1, nrows - 1)]
@@ -234,12 +241,16 @@ class Figrid():
                 
         self.fig = fig
         self.axes = axes
-        self.xborder = xborder / figwidth
-        self.yborder = yborder / figheight
-        self.wspace = wspace / figwidth
-        self.hspace = hspace / figheight
+        self.xborder = xborder
+        self.yborder = yborder
+        self.wspace = wspace 
+        self.hspace = hspace
         self.figsize = [figwidth, figheight]
         self.panel_length = panel_length
+        self.panel_heights = height_ratios
+        self.panel_widths = width_ratios
+        self.dim = [nrows, ncols]
+        self.dpi = dpi
         return fig
     
     ##### INTERFACING WITH DATA CONTAINERS ##########################
@@ -341,7 +352,7 @@ class Figrid():
             p.text(pos[0], pos[1], collabels[i],
                     transform = p.transAxes, **textKwargs)
         return
-
+    
     def getMask(self, rowVal = '', colVal = ''):
         def _get1DMask(val, dimValues, axis):
             if val == '':
@@ -481,7 +492,7 @@ class Figrid():
     def combineFigrids(self, figrid, loc = 'bottom'):
         nrows = self.dim[0]
         ncols = self.dim[1]
-
+        
         if loc == 'bottom':
             nrows += figrid.dim[0]
             newslc = (slice(self.dim[0], None), slice(None))
@@ -490,7 +501,7 @@ class Figrid():
             nrows += figrid.dim[0]
             newslc = (slice(0, figrid.dim[0]), slice(None))
             selfslc = (slice(figrid.dim[0], None), slice(None))
-
+            wspaces = self.wspace
         elif loc == 'right':
             ncols += figrid.dim[1]
             newslc = (slice(None), slice(self.dim[1], None))
@@ -505,15 +516,19 @@ class Figrid():
         widths = np.zeros(ncols)
         heights[selfslc[0]] = self.panel_heights
         widths[selfslc[1]] = self.panel_widths
+        
+        hspaces = np.ones(nrows - 1) * self.hspace[0]
+        wspaces = np.ones(ncols - 1) * self.wspace[0]
+        print(hspaces)
+        print(wspaces)
         if loc == 'bottom' or loc == 'top':
 
             heights[newslc[0]] = figrid.panel_heights
         elif loc == 'left' or loc == 'right':
             widths[newslc[1]] = figrid.panel_widths
-        print(heights)
-        print(widths)
+        
         pl = max(np.max(heights), np.max(widths))
-        self._makeFig(nrows, ncols, pl, self.panel_bt,
+        self._makeFig(nrows, ncols, pl, wspaces, hspaces,
             self.xborder, self.yborder, heights, widths,
             self.dpi)
 
