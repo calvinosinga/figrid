@@ -1,130 +1,40 @@
 #!/usr/bin/env python3
 import numpy as np
 import matplotlib.pyplot as plt
-from figrid.data_list import DataList
 import copy
-import matplotlib.gridspec as gspec
 
+"""
+Add save method
+"""
 
 class Figrid():
-
-    def __init__(self, dataList):
-        self.dl = dataList
-        self.rowValues = []
-        self.colValues = []
-        self.rowOrderFunc = self._defaultOrder
-        self.colOrderFunc = self._defaultOrder
-
-        self.panels = None
-        self.setrc()
-        return
-    
-    def setrc(self, rcparams = {}):
-        if not rcparams:
-            plt.rcParams['font.family'] = 'serif'
-            plt.rcParams['mathtext.fontset'] = 'dejavuserif'
-        else:
-            plt.rcParams.update(rcparams)
+   
+    def __init__(self, panels, panel_attr, row_values, col_values):
+        self.row_values = row_values
+        self.col_values = col_values
+        self.panel_attr = panel_attr
+        self.panels = panels
+        self.tick_params = {}
+        self.axis_params = {}
+        self.legend_params = {}
+        self.attr_args = {}
+        self.fig_params = {}
+        self.display_names = {}
+        self.axis_labels = {}
+        self.legend_slc = None
         return
 
     ########## MAKING FIGURES #####################################
 
-    def setRowOrder(self, ordered_list = [], func = None):
-        if ordered_list:
-            self.rowValues = ordered_list
-        if not func is None:
-            self.rowOrderFunc = func
-        else:
-            self.rowOrderFunc = self._defaultOrder
-        return
-    
-    def _defaultOrder(self, attrList):
-        return attrList
-    
-    def setColOrder(self, ordered_list = [], func = None):
-        if ordered_list:
-            self.colValues = ordered_list
-        if not func is None:
-            self.colOrderFunc = func
-        else:
-            self.colOrderFunc = self._defaultOrder
-        return
-    
-    def arrange(self, rowAttr = [], colAttr = [], panel_length = 3, 
-            wspace = 0.11, hspace = 0.11, xborder = 0.33, yborder = 0.33, 
-            height_ratios = None, width_ratios = None, 
-            dpi = 100):
-        
-        # panel_length gives the values in inches
-        # the other values should scale with panel_length
-        # so they are given as fractions of panel_length
-        
-        # if rowAttr colAttr are strings, convert them to lists
-        if not isinstance(rowAttr, list):
-            rowAttr = [rowAttr]
-        if not isinstance(colAttr, list):
-            colAttr = [colAttr]
-        
-        rowValues = []
-        colValues = []
-        valToAttr = {}
-
-        for ra in rowAttr:
-            vals = self.dl.getAttrVals(ra)
-            rowValues.extend(vals)
-            for v in vals:
-                valToAttr[v] = ra
-        
-
-        for ca in colAttr:
-            vals = self.dl.getAttrVals(ca)
-            colValues.extend(vals)
-            for v in vals:
-                valToAttr[v] = ca
-
-
-        rowValues = self.rowOrderFunc(rowValues)
-        colValues = self.colOrderFunc(colValues)
-
-        print('The row values for %s: %s'%(rowAttr, str(rowValues)))
-        print('The column values for %s: %s'%(colAttr, str(colValues)))
-        
-        nrows = max(1, len(rowValues))
-        ncols = max(1, len(colValues))
-        
-        self.rowValues = rowValues
-        self.colValues = colValues
-
-        self._makeFig(nrows, ncols, panel_length, wspace, hspace,
-            xborder, yborder, height_ratios, width_ratios, dpi)
-        
-        self.panels = np.empty((nrows, ncols), dtype = object)
-        for i in range(nrows):
-            for j in range(ncols):
-
-                rowColAttr = {}
-                if j < len(colValues):
-                    
-                    attr_for_col = valToAttr[colValues[j]]
-                    rowColAttr[attr_for_col] = colValues[j]
-
-                if i < len(rowValues):
-                    attr_for_row = valToAttr[rowValues[i]]
-                    rowColAttr[attr_for_row] = rowValues[i]
-
-                dlPanel = self.dl.getMatching(rowColAttr)
-                
-                self.panels[i, j] = DataList(copy.deepcopy(dlPanel))
-        
-        return
-
-
-    def _makeFig(self, nrows, ncols, panel_length, wspace,
-            hspace, xborder, yborder, height_ratios = None, 
-            width_ratios = None, dpi = 100):
+    def makeFig(self, nrows, ncols, panel_length = 3, 
+            wspace = 0.25, hspace = 0.25, 
+            xborder = [0.33, 0], yborder = [0, 0.33], 
+            height_ratios = None, 
+            width_ratios = None, 
+            figkw = {}):
         """
-        Make a gridspec and corresponding figure according to the
-        given specifications.
+        Make a figure according to the
+        given specifications for the subpanels.
 
         Args:
             nrows (int): number of rows
@@ -212,7 +122,8 @@ class Figrid():
         figwidth = total_widths + total_wspace + wborder_space
         figheight = total_heights + total_hspace + hborder_space 
 
-        fig = plt.figure(figsize=(figwidth, figheight), dpi = dpi)
+        figkw['figsize'] = (figwidth, figheight)
+        fig = plt.figure(**figkw)
                 
         axes = np.empty((nrows, ncols), dtype = object)
         for i in range(nrows):
@@ -250,7 +161,6 @@ class Figrid():
         self.panel_heights = height_ratios
         self.panel_widths = width_ratios
         self.dim = [nrows, ncols]
-        self.dpi = dpi
         return fig
     
     ##### INTERFACING WITH DATA CONTAINERS ##########################
@@ -294,7 +204,14 @@ class Figrid():
         axisnp(self.axes[slc])
         return
 
-    def drawLegend(self, legendParams, slc = None):
+    def setLegend(self, legendParams, slc = None):
+        self.legend_params.update(legendParams)
+        self.legend_slc = slc
+        return
+
+    def _makeLegend(self):
+        legendParams = self.legend_params
+        slc = self.legend_slc
         if slc is None:
             slc = (slice(None), slice(None))
 
@@ -305,7 +222,7 @@ class Figrid():
         legnp = np.vectorize(_panelLegend, cache = True)
         legnp(self.axes[slc])
         return
-
+    
     def matchLimits(self, xory = 'both', slc = None):
         
         def _getlim(ax):
@@ -335,8 +252,11 @@ class Figrid():
 
         return
     
-    def setRowLabels(self, rowlabels, pos, textKwargs = {},
+    def setRowLabels(self, rowlabels, pos = [], textKwargs = {},
             colidx = 0):
+        
+        if not pos:
+            pos = [0.05, 0.05]
         
         for i in range(self.dim[0]):
             p = self.axes[i, colidx]
@@ -344,8 +264,11 @@ class Figrid():
                     transform = p.transAxes, **textKwargs)
         return
 
-    def setColLabels(self, collabels, pos, textKwargs = {},
+    def setColLabels(self, collabels, pos = [], textKwargs = {},
             rowidx = 0):
+        
+        if not pos:
+            pos = [0.5, 0.9]
         
         for i in range(self.dim[1]):
             p = self.axes[rowidx, i]
@@ -353,27 +276,6 @@ class Figrid():
                     transform = p.transAxes, **textKwargs)
         return
     
-    def getMask(self, rowVal = '', colVal = ''):
-        def _get1DMask(val, dimValues, axis):
-            if val == '':
-                mask = np.ones(self.dim, dtype = bool)
-            else:
-                mask = np.zeros(self.dim, dtype = bool)
-
-            try:
-                idx = dimValues.index(val)
-                if axis == 0:
-                    mask[idx, :] = 1
-                else:
-                    mask[:, idx] = 1
-                return mask
-            except ValueError:
-                return mask
-                
-        
-        rowMask = _get1DMask(rowVal, self.rowValues, 0)
-        colMask = _get1DMask(colVal, self.colValues, 1)
-        return rowMask & colMask
     
     ##### INTERFACE WITH THE FIGURE #################################
 
@@ -381,30 +283,21 @@ class Figrid():
         self.fig.text(pos[0], pos[1], text, **textKwargs)
         return
 
-    # def adjustPanelSpacing(self, xory, inbt, new_panel_bt):
-    #     xborder = self.xborder; yborder = self.yborder
-    #     figwidth = self.figsize[0]; figheight = self.figsize[1]
-
-    #     if xory == 'x' or xory == 'both':
-    #         gs = gspec.GridSpec(inbt[0], self.dim[1], left= xborder[0]/figwidth, right=0,
-    #                 top=1-yborder[1]/figheight, bottom=yborder[0]/figheight,
-    #                 wspace=panel_bt[0]*ncols/figwidth, hspace=panel_bt[1]*nrows/figheight,
-    #                 height_ratios = height_ratios, width_ratios = width_ratios)
-    #         gsright = gspec.GridSpec(self.dim[0] - inbt[0], self.dim[1], right = )
-            
-    #     return
     ############ PLOTTING ROUTINES ##################################
     
     def plotPanel(self, rowidx, colidx):
         idx = (rowidx, colidx)
         panel = self.panels[idx]
-        panel.plot(self.axes[idx])
+        for dc in panel:
+            dc.plot(self.axes[idx])
         return
 
     def plot(self):
         for i in range(self.dim[0]):
             for j in range(self.dim[1]):
                 self.plotPanel(i, j)
+        
+        self._makeLegend()
         return
 
     def setFunc(self, attrs, func, slc = None):
@@ -434,9 +327,11 @@ class Figrid():
 
     ##### CONVENIENCE METHODS #######################################
 
-    def makeXLabel(self, text, pos = [], txtargs = {}):
+    def setXLabel(self, text, pos = [], txtargs = {}):
         if not pos:
-            pos = [0.5, 0]
+            fl = self.figsize[0]
+            xb = self.xborder
+            pos = [(0.5 * (fl - np.sum(xb)) + xb[0]) / fl, 0]
         
         txtargs['ha'] = 'center'
         txtargs['va'] = 'bottom'
@@ -444,9 +339,11 @@ class Figrid():
         self.annotateFig(text, pos, txtargs)
         return
     
-    def makeYLabel(self, text, pos = [], txtargs = {}):
+    def setYLabel(self, text, pos = [], txtargs = {}):
         if not pos:
-            pos = [0, 0.5]
+            fh = self.figsize[1]
+            yb = self.yborder
+            pos = [0, (0.5 * (fh - np.sum(yb)) + yb[1])/fh]
         
         txtargs['ha'] = 'left'
         txtargs['va'] = 'center'
