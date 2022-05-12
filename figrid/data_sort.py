@@ -31,11 +31,11 @@ class DataSort():
     def loadHdf5(self):
         return
     
-    def loadResults(self, results):
+    def loadResults(self, results, new_props = {}):
         for r in results:
             data = [r.xvalues, r.yvalues, r.zvalues]
             dc = DataContainer(data)
-
+            dc.update(new_props)
             dc.update(r.props)
             self.dclist.append(dc)
         return
