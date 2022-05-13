@@ -450,8 +450,7 @@ class Figrid():
         
         pl = max(np.max(heights), np.max(widths))
         self.makeFig(nrows, ncols, pl, wspaces, hspaces,
-            self.xborder, self.yborder, heights, widths,
-            self.dpi)
+            self.xborder, self.yborder, heights, widths)
 
         newpanels = np.empty((nrows, ncols), dtype = object)
         newpanels[selfslc] = self.panels.copy()
