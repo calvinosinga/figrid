@@ -105,6 +105,13 @@ class DataSort():
     def makeFill(self, attrs, fillkwargs = {}):
         attrs['figrid_process'] = 'no key found'
         matches = self.getMatching(attrs)
+        for at in attrs:
+            if isinstance(attrs[at], list):
+                name = ''
+                for l in attrs[at]:
+                    name+=l + '_'
+                attrs[at] = name[:-1]
+                
         default_args = {}
         if len(matches) >= 1:
             data = matches[0].getData()
