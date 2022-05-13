@@ -449,7 +449,7 @@ class Figrid():
             widths[newslc[1]] = figrid.panel_widths
         
         pl = max(np.max(heights), np.max(widths))
-        self._makeFig(nrows, ncols, pl, wspaces, hspaces,
+        self.makeFig(nrows, ncols, pl, wspaces, hspaces,
             self.xborder, self.yborder, heights, widths,
             self.dpi)
 
