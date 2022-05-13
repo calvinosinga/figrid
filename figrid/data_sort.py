@@ -394,17 +394,17 @@ class DataSort():
             figrid.setXLabel(*self.axis_labels['x'])
         if 'y' in self.axis_labels:
             figrid.setYLabel(*self.axis_labels['y'])
-        
+                    
         if row_attr in self.row_label_args:
             figrid.setRowLabels(row_labels, 
                     *self.row_label_args[row_attr])
-        elif '_default_' in self.row_label_args:
+        elif '_default_' in self.row_label_args and not row_attr == '':
             figrid.setRowLabels(row_labels, 
                     *self.row_label_args['_default_'])
         
         if col_attr in self.col_label_args:
             figrid.setColLabels(col_labels, *self.col_label_args[col_attr])
-        elif '_default_' in self.col_label_args:
+        elif '_default_' in self.col_label_args and not col_attr == '':
             figrid.setColLabels(col_labels, *self.col_label_args['_default_'])
         
         return figrid
