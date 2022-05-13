@@ -385,10 +385,10 @@ class DataSort():
         figrid.makeFig(nrows, ncols, **self.figrid_args)
         for xory in self.tick_args:
             for which in self.tick_args[xory]:
-                figrid.setTicks(self.tick_args[xory][which], xory, which)
+                figrid.tickArgs(self.tick_args[xory][which], xory, which)
 
-        figrid.setAxisParams(self.axis_args)
-        figrid.setLegend(self.legend_args, self.legend_slice)
+        figrid.axisArgs(self.axis_args)
+        figrid.legendArgs(self.legend_args, self.legend_slice)
 
         if 'x' in self.axis_labels:
             figrid.setXLabel(*self.axis_labels['x'])
@@ -396,16 +396,16 @@ class DataSort():
             figrid.setYLabel(*self.axis_labels['y'])
                     
         if row_attr in self.row_label_args:
-            figrid.setRowLabels(row_labels, 
+            figrid.rowLabelArgs(row_labels, 
                     *self.row_label_args[row_attr])
         elif '_default_' in self.row_label_args and not row_attr == '':
-            figrid.setRowLabels(row_labels, 
+            figrid.rowLabelArgs(row_labels, 
                     *self.row_label_args['_default_'])
         
         if col_attr in self.col_label_args:
-            figrid.setColLabels(col_labels, *self.col_label_args[col_attr])
+            figrid.colLabelArgs(col_labels, *self.col_label_args[col_attr])
         elif '_default_' in self.col_label_args and not col_attr == '':
-            figrid.setColLabels(col_labels, *self.col_label_args['_default_'])
+            figrid.colLabelArgs(col_labels, *self.col_label_args['_default_'])
         
         return figrid
     

@@ -18,6 +18,10 @@ class Figrid():
         self.fig_params = {}
         self.display_names = {}
         self.axis_labels = {}
+        self.row_label_args = {}
+        self.col_label_args = {}
+        self.row_labels = []
+        self.col_labels = []
         self.legend_slc = None
         return
 
@@ -176,7 +180,7 @@ class Figrid():
         
     ########## INTERFACING WITH PANELS ##############################
 
-    def setTicks(self, tickParams, xory = 'both', which = 'both', 
+    def tickArgs(self, tickParams, xory = 'both', which = 'both', 
             slc = None):
         if slc is None:
             slc = (slice(None), slice(None))
@@ -189,7 +193,7 @@ class Figrid():
         ticknp(self.axes[slc])
         return
 
-    def setAxisParams(self, axisParams, slc = None):
+    def axisArgs(self, axisParams, slc = None):
         if slc is None:
             slc = (slice(None), slice(None))
 
@@ -201,7 +205,7 @@ class Figrid():
         axisnp(self.axes[slc])
         return
 
-    def setLegend(self, legendParams, slc = None):
+    def legendArgs(self, legendParams, slc = None):
         self.legend_params.update(legendParams)
         self.legend_slc = slc
         return
@@ -249,30 +253,45 @@ class Figrid():
 
         return
     
-    def setRowLabels(self, rowlabels, pos = [], textKwargs = {},
-            colidx = 0):
-        
-        if not pos:
-            pos = [0.05, 0.05]
-        
-        for i in range(self.dim[0]):
-            p = self.axes[i, colidx]
-            p.text(pos[0], pos[1], rowlabels[i],
-                    transform = p.transAxes, **textKwargs)
+    def _makeRowLabels(self):
+        rowlabels = self.row_labels
+        pos, textKwargs, colidx = self.row_label_args
+
+        if rowlabels:
+            for i in range(self.dim[0]):
+                p = self.axes[i, colidx]
+                p.text(pos[0], pos[1], rowlabels[i],
+                        transform = p.transAxes, **textKwargs)
         return
 
-    def setColLabels(self, collabels, pos = [], textKwargs = {},
-            rowidx = 0):
-        
+    def rowLabelArgs(self, rowlabels, pos = [], textKwargs = {},
+            colidx = 0):
         if not pos:
-            pos = [0.5, 0.9]
-        
-        for i in range(self.dim[1]):
-            p = self.axes[rowidx, i]
-            p.text(pos[0], pos[1], collabels[i],
-                    transform = p.transAxes, **textKwargs)
+            pos = [0.05, 0.05]
+
+        self.row_labels = rowlabels
+        self.row_label_args = (pos, textKwargs, colidx)
         return
     
+    def _makeColLabels(self):
+        
+        collabels = self.col_labels
+        pos, textKwargs, rowidx = self.col_label_args
+        if collabels:
+            for i in range(self.dim[1]):
+                p = self.axes[rowidx, i]
+                p.text(pos[0], pos[1], collabels[i],
+                        transform = p.transAxes, **textKwargs)
+        return
+    
+    def colLabelArgs(self, collabels, pos = [], textKwargs = {},
+            rowidx = 0):
+        if not pos:
+            pos = [0.5, 0.9]
+
+        self.col_labels = collabels
+        self.col_label_args = (pos, textKwargs, rowidx)
+        return
     
     ##### INTERFACE WITH THE FIGURE #################################
 
@@ -295,6 +314,8 @@ class Figrid():
                 self.plotPanel(i, j)
         
         self._makeLegend()
+        self._makeColLabels()
+        self._makeRowLabels()
         return
 
     def setFunc(self, attrs, func, slc = None):
@@ -385,11 +406,11 @@ class Figrid():
         
         if self.dim[0] > 1:
             params = {'labelbottom':False}
-            self.setTicks(params, 'x', slc = topslc)
+            self.tickArgs(params, 'x', slc = topslc)
         
         if self.dim[1] > 1:
             params = {'labelleft':False}
-            self.setTicks(params, 'y', slc = rightslc)
+            self.tickArgs(params, 'y', slc = rightslc)
         return
     
     def matchDefaultLimits(self):
@@ -438,8 +459,8 @@ class Figrid():
         heights[selfslc[0]] = self.panel_heights
         widths[selfslc[1]] = self.panel_widths
         
-        hspaces = np.ones(nrows - 1) * self.hspace[0]
-        wspaces = np.ones(ncols - 1) * self.wspace[0]
+        hspaces = np.ones(nrows - 1) * self.hspace[0] / self.panel_length
+        wspaces = np.ones(ncols - 1) * self.wspace[0] / self.panel_length
         print(hspaces)
         print(wspaces)
         if loc == 'bottom' or loc == 'top':
@@ -451,7 +472,8 @@ class Figrid():
         pl = max(np.max(heights), np.max(widths))
         self.makeFig(nrows, ncols, pl, wspaces, hspaces,
             self.xborder, self.yborder, heights, widths)
-
+        self.rowLabelArgs(self.row_labels, *self.row_label_args)
+        self.colLabelArgs(self.col_labels, *self.col_label_args)
         newpanels = np.empty((nrows, ncols), dtype = object)
         newpanels[selfslc] = self.panels.copy()
         newpanels[newslc] = figrid.panels.copy()
