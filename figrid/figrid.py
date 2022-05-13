@@ -3,9 +3,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 import copy
 
-"""
-Add save method
-"""
 
 class Figrid():
    
@@ -443,3 +440,4 @@ class Figrid():
     def save(self, path):
         self.fig.savefig(path)
         return
+    

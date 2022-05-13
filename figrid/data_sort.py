@@ -226,59 +226,87 @@ class DataSort():
         return
 
     def figrid(self, panel_attr, row_attr, col_attr,
-            include_attrs = {}, remove_attrs = {},
+            in_attrs = {}, rm_attrs = {},
             figkw = {}):
- 
-        # the values of the given row/col attr that correspond
-        # to the respective row/column in the figrid
-        row_values = []
-        col_values = []
 
-        # what the label for each row/col should be
+        # figure out the values for the row attribute that
+        # are desired from in_attrs, rm_attrs, and if the
+        # user set an order for this attribute
+        row_values = []
+        if row_attr in in_attrs:
+            # first check if in in_attrs - if so,
+            # the values here are used in the order
+            # they are given
+            row_values = in_attrs[row_attr]
+        elif row_attr in self.attr_orders:
+            # if user specified an order for this attr,
+            # use that order! otherwise just get the
+            # values in any order.
+            row_values = self.attr_orders[row_attr]
+        else:
+            row_values = self.getAttrVals(row_attr)
+        
+        # finally check rm_attrs - if here, then remove equivalent
+        # values from vals
+        if row_attr in rm_attrs:
+
+            rmvals = rm_attrs[row_attr]
+            if not isinstance(rmvals, list):
+                rmvals = [rmvals]
+            
+            for rm in rmvals:
+                if rm in row_values:
+                    row_values.remove(rm)
+        
+        # now figure out the values to include for the columns, 
+        # in a similar process to the row attr
+        col_values = []
+        if col_attr in in_attrs:
+            col_values = in_attrs[col_attr]
+        elif col_attr in self.attr_orders:
+            col_values = self.attr_orders[col_attr]
+        else:
+            col_values = self.getAttrVals(col_attr)
+
+
+        if col_attr in rm_attrs:
+
+            rmvals = rm_attrs[col_attr]
+            if not isinstance(rmvals, list):
+                rmvals = [rmvals]
+            
+            for rm in rmvals:
+                if rm in col_values:
+                    col_values.remove(rm)
+        
+        
+        # if user specified a particular way to display the
+        # row/col attributes in the figure, save those here
         row_labels = []
         col_labels = []
 
-
-        # if user specified an order for this attr,
-        # use that order! otherwise just get the
-        # values in any order
-        if row_attr in self.attr_orders:
-            vals = self.attr_orders[row_attr]
-        else:
-            vals = self.getAttrVals(row_attr)
-            
-        # if labels are specified, save them in the
-        # order of the row_values
+        # the reasoning for this is that long, descriptive
+        # labels may be desired but would be inconvenient
+        # to access them with long strings.
+        # So this setup allows for you to use shorthands
+        # for the dictionary
         if row_attr in self.display_names:
             names_for_attr = self.display_names[row_attr]
-            for v in vals:
+            for v in row_values:
                 if v in names_for_attr:
                     row_labels.append(names_for_attr[v])
                 else: 
-                    # if name not specified, the value is
+                    # if name not specified, the attr name is
                     # used by default
                     row_labels.append(v)
         else:
-            for v in vals:
+            for v in row_values:
                 row_labels.append(v)
-            
-        row_values.extend(vals)
         
 
-
-        # if user gives a specified order for this attr,
-        # use that order! otherwise just get the
-        # values in any order
-        if col_attr in self.attr_orders:
-            vals = self.attr_orders[col_attr]
-        else:
-            vals = self.getAttrVals(col_attr)
-
-        # if labels are specified, save them in the
-        # order of the row_values
         if col_attr in self.display_names:
             names_for_attr = self.display_names[col_attr]
-            for v in vals:
+            for v in col_values:
                 if v in names_for_attr:
                     col_labels.append(names_for_attr[v])
                 else: 
@@ -286,14 +314,14 @@ class DataSort():
                     # used by default
                     col_labels.append(v)
         else:
-            for v in vals:
+            for v in col_values:
                 col_labels.append(v)
         
-        col_values.extend(vals)
 
-
-        print('The row values for %s: %s'%(str(row_attr), str(row_values)))
-        print('The column values for %s: %s'%(str(col_attr), str(col_values)))
+        rowtup = (str(row_attr), str(row_values))
+        coltup = (str(col_attr), str(col_values))
+        print('The row values for %s: %s'%rowtup)
+        print('The column values for %s: %s'%coltup)
         
         # the number of rows and columns for the figrid (must have at least one)
         nrows = max(1, len(row_values))
@@ -304,7 +332,7 @@ class DataSort():
         for i in range(nrows):
             for j in range(ncols):
                 
-                attr_for_panel = copy.deepcopy(include_attrs)
+                attr_for_panel = copy.deepcopy(in_attrs)
                 if j < len(col_values):
                     
                     attr_for_panel[col_attr] = col_values[j]
@@ -313,7 +341,7 @@ class DataSort():
                     attr_for_panel[row_attr] = row_values[i]
 
                 containers_for_panel = \
-                    self.getMatching(attr_for_panel, remove_attrs)
+                    self.getMatching(attr_for_panel, rm_attrs)
 
                 containers_for_panel = \
                     copy.deepcopy(containers_for_panel)
@@ -360,17 +388,4 @@ class DataSort():
         
         return figrid
     
-    ##### INTERFACING WITH DATA CONTAINERS ##########################
-
-    # def setArgs(self, attrs, kwargs):
-    #     matches = self.getMatching(attrs)
-    #     for m in matches:
-    #         m.setArgs(kwargs)
-    #     return matches
-        
-    # def setFunc(self, attrs, func):
-    #     matches = self.getMatching(attrs)
-    #     for m in matches:
-    #         m.setFunc(func)
-    #     return matches
      
