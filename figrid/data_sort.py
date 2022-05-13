@@ -103,6 +103,7 @@ class DataSort():
     ##### POST-PROCESS DATA #########################################
 
     def makeFill(self, attrs, fillkwargs = {}):
+        attrs = copy.deepcopy(attrs)
         attrs['figrid_process'] = 'no key found'
         matches = self.getMatching(attrs)
         for at in attrs:
@@ -111,7 +112,7 @@ class DataSort():
                 for l in attrs[at]:
                     name+=l + '_'
                 attrs[at] = name[:-1]
-                
+
         default_args = {}
         if len(matches) >= 1:
             data = matches[0].getData()
