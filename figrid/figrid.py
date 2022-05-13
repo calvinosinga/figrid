@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import numpy as np
 import matplotlib.pyplot as plt
-import copy
+from figrid.data_container import DataContainer
 
 
 class Figrid():
@@ -315,7 +315,34 @@ class Figrid():
             slc = (slice(None), slice(None))
         
         def _panelFill(panel):
-            panel.makeFill(attrs, fillKwargs)
+            data = None
+            for dc in panel:
+                if dc.isMatch(attrs):
+                    if data is None:
+
+                        data = dc.getData()
+                        x = data[0]; y = data[1]
+                        ymins = np.ones_like(y) * y
+                        ymaxs = np.ones_like(y) * y
+                    else:
+                        data = dc.getData()
+                        x = data[0]; y = data[1]
+                        ymins = np.minimum(y, ymins)
+                        ymaxs = np.maximum(y, ymaxs)
+                    
+                    args = {'visible':False, 'zorder':-1,
+                        'label':'_nolegend_'}
+                    dc.setArgs(args)
+            filldc = DataContainer([x, ymins, ymaxs])
+            attrs['figrid_process'] = 'fill'
+
+            def _plotFill(ax, data, kwargs):
+                ax.fill_between(data[0], data[1], data[2], **kwargs)
+                return
+            
+            filldc.setFunc(_plotFill)
+            filldc.setArgs(fillKwargs)
+            self.append(filldc)
             return
 
         fillnp = np.vectorize(_panelFill, cache = True)
