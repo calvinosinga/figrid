@@ -237,7 +237,10 @@ class DataSort():
             # first check if in in_attrs - if so,
             # the values here are used in the order
             # they are given
-            row_values = in_attrs[row_attr]
+            if isinstance(in_attrs[row_attr], list):
+                row_values.extend(in_attrs[row_attr])
+            else:
+                row_values.append(in_attrs[row_attr])
         elif row_attr in self.attr_orders:
             # if user specified an order for this attr,
             # use that order! otherwise just get the
@@ -262,7 +265,10 @@ class DataSort():
         # in a similar process to the row attr
         col_values = []
         if col_attr in in_attrs:
-            col_values = in_attrs[col_attr]
+            if isinstance(in_attrs[col_attr], list):
+                col_values.extend(in_attrs[col_attr])
+            else:
+                col_labels.append(in_attrs[col_attr])
         elif col_attr in self.attr_orders:
             col_values = self.attr_orders[col_attr]
         else:
