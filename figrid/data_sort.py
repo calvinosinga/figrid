@@ -365,7 +365,10 @@ class DataSort():
         fa.update(figkw)
         self.figrid_args['figkw'] = fa
         figrid.makeFig(nrows, ncols, **self.figrid_args)
-        figrid.setTicks(self.tick_args)
+        for xory in self.tick_args:
+            for which in self.tick_args[xory]:
+                figrid.setTicks(self.tick_args, xory, which)
+                
         figrid.setAxisParams(self.axis_args)
         figrid.setLegend(self.legend_args, self.legend_slice)
 
