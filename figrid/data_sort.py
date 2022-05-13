@@ -268,7 +268,7 @@ class DataSort():
             if isinstance(in_attrs[col_attr], list):
                 col_values.extend(in_attrs[col_attr])
             else:
-                col_labels.append(in_attrs[col_attr])
+                col_values.append(in_attrs[col_attr])
         elif col_attr in self.attr_orders:
             col_values = self.attr_orders[col_attr]
         else:
