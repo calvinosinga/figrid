@@ -410,3 +410,72 @@ class DataSort():
         return figrid
     
      
+    def combineFigrids(self, fg_init, fg_add, loc = 'bottom'):
+        nrows = fg_init.dim[0]
+        ncols = fg_init.dim[1]
+        
+        if loc == 'bottom':
+            nrows += fg_add.dim[0]
+            newslc = (slice(fg_add.dim[0], None), slice(None))
+            initslc = (slice(0, fg_add.dim[0]), slice(None))
+
+            fg_init.row_labels.extend(fg_add.row_labels)
+        elif loc == 'top':
+            nrows += fg_add.dim[0]
+            newslc = (slice(0, fg_add.dim[0]), slice(None))
+            initslc = (slice(fg_add.dim[0], None), slice(None))
+            wspaces = fg_init.wspace
+
+            fg_init.row_labels = fg_add.row_labels.extend(fg_init.row_labels)
+        elif loc == 'right':
+            ncols += fg_add.dim[1]
+            newslc = (slice(None), slice(fg_init.dim[1], None))
+            initslc = (slice(None), slice(0, fg_init.dim[1]))
+
+            fg_init.col_labels.extend(fg_add.col_labels)
+        elif loc == 'left':
+            ncols += fg_add.dim[1]
+            newslc = (slice(None), slice(0, fg_add.dim[1]))
+            initslc = (slice(None), slice(fg_add.dim[1], None))
+
+            fg_init.col_labels = fg_add.col_labels.extend(fg_init.col_labels)
+        else:
+            raise ValueError('not accepted location')
+        heights = np.zeros(nrows)
+        widths = np.zeros(ncols)
+        heights[initslc[0]] = fg_init.panel_heights
+        widths[initslc[1]] = fg_init.panel_widths
+        
+        hspaces = np.ones(nrows - 1) * fg_init.hspace[0] / fg_init.panel_length
+        wspaces = np.ones(ncols - 1) * fg_init.wspace[0] / fg_init.panel_length
+        print(hspaces)
+        print(wspaces)
+        if loc == 'bottom' or loc == 'top':
+
+            heights[newslc[0]] = fg_init.panel_heights
+        elif loc == 'left' or loc == 'right':
+            widths[newslc[1]] = fg_init.panel_widths
+        
+        # pl = max(np.max(heights), np.max(widths))
+
+        fg_init.makeFig(nrows, ncols, **self.figrid_args)
+        for xory in self.tick_args:
+            for which in self.tick_args[xory]:
+                fg_init.tickArgs(self.tick_args[xory][which], xory, which)
+
+        fg_init.axisArgs(self.axis_args)
+        fg_init.legendArgs(self.legend_args, self.legend_slice)
+
+        if 'x' in self.axis_labels:
+            fg_init.setXLabel(*self.axis_labels['x'])
+        if 'y' in self.axis_labels:
+            fg_init.setYLabel(*self.axis_labels['y'])
+                    
+        fg_init.rowLabelArgs(fg_init.row_labels, *fg_init.row_label_args)
+        fg_init.colLabelArgs(fg_init.col_labels, *fg_init.col_label_args)
+
+        newpanels = np.empty((nrows, ncols), dtype = object)
+        newpanels[initslc] = fg_init.panels.copy()
+        newpanels[newslc] = fg_add.panels.copy()
+        fg_init.panels = newpanels
+        return fg_init

@@ -256,7 +256,6 @@ class Figrid():
     def _makeRowLabels(self):
         rowlabels = self.row_labels
         
-
         if rowlabels:
             pos, textKwargs, colidx = self.row_label_args
             for i in range(self.dim[0]):
@@ -428,67 +427,6 @@ class Figrid():
             slc = (slice(None), j)
             self.matchLimits('x', slc = slc)
         
-        return
-
-
-    ##### POST-PROCESS METHODS ######################################     
-
-    def combineFigrids(self, figrid, loc = 'bottom'):
-        nrows = self.dim[0]
-        ncols = self.dim[1]
-        
-        if loc == 'bottom':
-            nrows += figrid.dim[0]
-            newslc = (slice(self.dim[0], None), slice(None))
-            selfslc = (slice(0, self.dim[0]), slice(None))
-
-            self.row_labels.extend(figrid.row_labels)
-        elif loc == 'top':
-            nrows += figrid.dim[0]
-            newslc = (slice(0, figrid.dim[0]), slice(None))
-            selfslc = (slice(figrid.dim[0], None), slice(None))
-            wspaces = self.wspace
-
-            self.row_labels = figrid.row_labels.extend(self.row_labels)
-        elif loc == 'right':
-            ncols += figrid.dim[1]
-            newslc = (slice(None), slice(self.dim[1], None))
-            selfslc = (slice(None), slice(0, self.dim[1]))
-
-            self.col_labels.extend(figrid.col_labels)
-        elif loc == 'left':
-            ncols += figrid.dim[1]
-            newslc = (slice(None), slice(0, figrid.dim[1]))
-            selfslc = (slice(None), slice(figrid.dim[1], None))
-
-            self.col_labels = figrid.col_labels.extend(self.col_labels)
-        else:
-            raise ValueError('not accepted location')
-        heights = np.zeros(nrows)
-        widths = np.zeros(ncols)
-        heights[selfslc[0]] = self.panel_heights
-        widths[selfslc[1]] = self.panel_widths
-        
-        hspaces = np.ones(nrows - 1) * self.hspace[0] / self.panel_length
-        wspaces = np.ones(ncols - 1) * self.wspace[0] / self.panel_length
-        print(hspaces)
-        print(wspaces)
-        if loc == 'bottom' or loc == 'top':
-
-            heights[newslc[0]] = figrid.panel_heights
-        elif loc == 'left' or loc == 'right':
-            widths[newslc[1]] = figrid.panel_widths
-        
-        pl = max(np.max(heights), np.max(widths))
-        self.makeFig(nrows, ncols, pl, wspaces, hspaces,
-            self.xborder, self.yborder, heights, widths)
-        
-        self.rowLabelArgs(self.row_labels, *self.row_label_args)
-        self.colLabelArgs(self.col_labels, *self.col_label_args)
-        newpanels = np.empty((nrows, ncols), dtype = object)
-        newpanels[selfslc] = self.panels.copy()
-        newpanels[newslc] = figrid.panels.copy()
-        self.panels = newpanels
         return
 
     def clf(self):
