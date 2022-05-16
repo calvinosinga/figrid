@@ -451,9 +451,9 @@ class DataSort():
         print(wspaces)
         if loc == 'bottom' or loc == 'top':
 
-            heights[newslc[0]] = fg_init.panel_heights
+            heights[newslc[0]] = fg_add.panel_heights
         elif loc == 'left' or loc == 'right':
-            widths[newslc[1]] = fg_init.panel_widths
+            widths[newslc[1]] = fg_add.panel_widths
         
         # pl = max(np.max(heights), np.max(widths))
 
