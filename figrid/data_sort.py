@@ -416,15 +416,14 @@ class DataSort():
         
         if loc == 'bottom':
             nrows += fg_add.dim[0]
-            newslc = (slice(fg_add.dim[0], None), slice(None))
-            initslc = (slice(0, fg_add.dim[0]), slice(None))
+            newslc = (slice(fg_init.dim[0], None), slice(None))
+            initslc = (slice(0, fg_init.dim[0]), slice(None))
 
             fg_init.row_labels.extend(fg_add.row_labels)
         elif loc == 'top':
             nrows += fg_add.dim[0]
             newslc = (slice(0, fg_add.dim[0]), slice(None))
             initslc = (slice(fg_add.dim[0], None), slice(None))
-            wspaces = fg_init.wspace
 
             fg_init.row_labels = fg_add.row_labels.extend(fg_init.row_labels)
         elif loc == 'right':
