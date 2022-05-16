@@ -18,8 +18,8 @@ class Figrid():
         self.fig_params = {}
         self.display_names = {}
         self.axis_labels = {}
-        self.row_label_args = {}
-        self.col_label_args = {}
+        self.row_label_args = ()
+        self.col_label_args = ()
         self.row_labels = []
         self.col_labels = []
         self.legend_slc = None
@@ -255,9 +255,10 @@ class Figrid():
     
     def _makeRowLabels(self):
         rowlabels = self.row_labels
-        pos, textKwargs, colidx = self.row_label_args
+        
 
         if rowlabels:
+            pos, textKwargs, colidx = self.row_label_args
             for i in range(self.dim[0]):
                 p = self.axes[i, colidx]
                 p.text(pos[0], pos[1], rowlabels[i],
@@ -276,8 +277,9 @@ class Figrid():
     def _makeColLabels(self):
         
         collabels = self.col_labels
-        pos, textKwargs, rowidx = self.col_label_args
+        
         if collabels:
+            pos, textKwargs, rowidx = self.col_label_args
             for i in range(self.dim[1]):
                 p = self.axes[rowidx, i]
                 p.text(pos[0], pos[1], collabels[i],
