@@ -439,19 +439,27 @@ class Figrid():
             nrows += figrid.dim[0]
             newslc = (slice(self.dim[0], None), slice(None))
             selfslc = (slice(0, self.dim[0]), slice(None))
+
+            self.col_labels.extend(figrid.col_labels)
         elif loc == 'top':
             nrows += figrid.dim[0]
             newslc = (slice(0, figrid.dim[0]), slice(None))
             selfslc = (slice(figrid.dim[0], None), slice(None))
             wspaces = self.wspace
+
+            self.col_labels = figrid.col_labels.extend(self.col_labels)
         elif loc == 'right':
             ncols += figrid.dim[1]
             newslc = (slice(None), slice(self.dim[1], None))
             selfslc = (slice(None), slice(0, self.dim[1]))
+
+            self.row_labels.extend(figrid.row_labels)
         elif loc == 'left':
             ncols += figrid.dim[1]
             newslc = (slice(None), slice(0, figrid.dim[1]))
             selfslc = (slice(None), slice(figrid.dim[1], None))
+
+            self.row_labels = figrid.row_labels.extend(self.row_labels)
         else:
             raise ValueError('not accepted location')
         heights = np.zeros(nrows)
@@ -472,6 +480,7 @@ class Figrid():
         pl = max(np.max(heights), np.max(widths))
         self.makeFig(nrows, ncols, pl, wspaces, hspaces,
             self.xborder, self.yborder, heights, widths)
+        
         self.rowLabelArgs(self.row_labels, *self.row_label_args)
         self.colLabelArgs(self.col_labels, *self.col_label_args)
         newpanels = np.empty((nrows, ncols), dtype = object)
