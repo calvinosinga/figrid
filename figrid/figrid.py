@@ -190,12 +190,15 @@ class Figrid():
             
             elif isinstance(slc[0], str):
                 mask = np.zeros(self.dim, dtype = bool)
-                
-                for rl in range(len(self.row_labels)):
-                    for cl in range(len(self.col_labels)):
-                        if self.col_labels[cl] == slc and \
-                            self.row_labels[rl] == slc:
-                            mask[rl, cl] = True
+                for s in slc:
+                    if s in self.row_labels:
+                        for rl in range(len(self.row_labels)):
+                            if s == self.row_labels[rl]:
+                                mask[rl, :] = True
+                    
+                        for cl in range(len(self.col_labels)):
+                            if s == self.col_labels[cl]:
+                                mask[:, cl] = True
                 
                 return mask
             
