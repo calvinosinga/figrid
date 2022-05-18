@@ -3,11 +3,6 @@ from figrid.figrid import Figrid
 import copy
 import numpy as np
 
-"""
-save orders of rows, columns, names for props
-create figrid objects, spit them out
-save standard figrid properties - ticks, axis, panel size, gspec_kw
-"""
 
 class DataSort():
     def __init__(self, dclist = []):
@@ -238,7 +233,7 @@ class DataSort():
         return
 
     def figrid(self, panel_attr, row_attr, col_attr,
-            in_attrs = {}, rm_attrs = {},
+            in_attrs = {}, rm_attrs = {}, figrid_args = {},
             figkw = {}):
 
         # figure out the values for the row attribute that
@@ -381,7 +376,8 @@ class DataSort():
         figrid = Figrid(panels, panel_attr, row_values, col_values)
         fa = copy.deepcopy(self.fig_args)
         fa.update(figkw)
-        self.figrid_args['figkw'] = fa
+        figrid_args.update(copy.deepcopy(self.figrid_args))
+        figrid_args['figkw'] = fa
         figrid.makeFig(nrows, ncols, **self.figrid_args)
         for xory in self.tick_args:
             for which in self.tick_args[xory]:

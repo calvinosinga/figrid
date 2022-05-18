@@ -32,6 +32,8 @@ class DataContainer():
             self.add(k, v, overwrite)
         return
     
+    def __str__(self):
+        return str(self.attrs.keys())
     ##### DATA ACCESS/MANAGEMENT ####################################
 
     def getData(self):
