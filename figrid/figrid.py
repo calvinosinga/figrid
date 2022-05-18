@@ -166,12 +166,14 @@ class Figrid():
     
     ##### INTERFACING WITH DATA CONTAINERS ##########################
 
-    def setPlotArgs(self, attrs, plotArgs, slc = None):
+    def plotArgs(self, attrs, plotArgs, slc = None):
         if slc is None:
             slc = (slice(None), slice(None))
 
         def _panelArgs(panel):
-            panel.setArgs(attrs, plotArgs)
+            for dc in panel:
+                if dc.isMatch(attrs):
+                    dc.setArgs(plotArgs)
             return
         
         argnp = np.vectorize(_panelArgs)
@@ -191,15 +193,14 @@ class Figrid():
             elif isinstance(slc[0], str):
                 mask = np.zeros(self.dim, dtype = bool)
                 for s in slc:
-                    if s in self.row_labels:
-                        for rl in range(len(self.row_labels)):
-                            if s == self.row_labels[rl]:
+                    if s in self.row_values:
+                        for rl in range(len(self.row_values)):
+                            if s == self.row_values[rl]:
                                 mask[rl, :] = True
-                    
-                        for cl in range(len(self.col_labels)):
-                            if s == self.col_labels[cl]:
+                    if s in self.col_values:
+                        for cl in range(len(self.col_values)):
+                            if s == self.col_values[cl]:
                                 mask[:, cl] = True
-                
                 return mask
             
             elif isinstance(slc[0], tuple):
@@ -207,7 +208,10 @@ class Figrid():
                 for tup in slc:
                     mask[tup] = True
                 return mask
-            
+        
+        elif isinstance(slc, tuple):
+            return slc
+        
         return
                 
                 
@@ -464,6 +468,6 @@ class Figrid():
         return
     
     def save(self, path):
-        self.fig.savefig(path)
+        self.fig.savefig(path, bbox_inches = 'tight')
         return
     

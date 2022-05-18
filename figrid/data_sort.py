@@ -376,9 +376,11 @@ class DataSort():
         figrid = Figrid(panels, panel_attr, row_values, col_values)
         fa = copy.deepcopy(self.fig_args)
         fa.update(figkw)
-        figrid_args.update(copy.deepcopy(self.figrid_args))
-        figrid_args['figkw'] = fa
-        figrid.makeFig(nrows, ncols, **self.figrid_args)
+        fgargs = copy.deepcopy(self.figrid_args)
+        fgargs.update(figrid_args)
+        # figrid_args.update(copy.deepcopy(self.figrid_args))
+        fgargs['figkw'] = fa
+        figrid.makeFig(nrows, ncols, **fgargs)
         for xory in self.tick_args:
             for which in self.tick_args[xory]:
                 figrid.tickArgs(self.tick_args[xory][which], xory, which)
@@ -456,8 +458,12 @@ class DataSort():
             widths[newslc[1]] = fg_add.panel_widths
         
         # pl = max(np.max(heights), np.max(widths))
-
-        fg_init.makeFig(nrows, ncols, **self.figrid_args)
+        fgargs = copy.deepcopy(self.figrid_args)
+        fgargs['height_ratios'] = heights
+        fgargs['width_ratios'] = widths
+        fgargs['wspace'] = wspaces
+        fgargs['hspace'] = hspaces
+        fg_init.makeFig(nrows, ncols, **fgargs)
         for xory in self.tick_args:
             for which in self.tick_args[xory]:
                 fg_init.tickArgs(self.tick_args[xory][which], xory, which)
