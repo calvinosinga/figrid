@@ -180,10 +180,38 @@ class Figrid():
         
     ########## INTERFACING WITH PANELS ##############################
 
+    def _getSlice(self, slc):
+        if slc is None:
+            return (slice(None), slice(None))
+        
+        elif isinstance(slc, list):
+            if len(slc) == 0:
+                return (slice(None), slice(None))
+            
+            elif isinstance(slc[0], str):
+                mask = np.zeros(self.dim, dtype = bool)
+                
+                for rl in range(len(self.row_labels)):
+                    for cl in range(len(self.col_labels)):
+                        if self.col_labels[cl] == slc and \
+                            self.row_labels[rl] == slc:
+                            mask[rl, cl] = True
+                
+                return mask
+            
+            elif isinstance(slc[0], tuple):
+                mask = np.zeros(self.dim, dtype = bool)
+                for tup in slc:
+                    mask[tup] = True
+                return mask
+            
+        return
+                
+                
     def tickArgs(self, tickParams, xory = 'both', which = 'both', 
             slc = None):
-        if slc is None:
-            slc = (slice(None), slice(None))
+
+        slc = self._getSlice(slc)
 
         def _panelTicks(axis):
             axis.tick_params(axis = xory, which = which, **tickParams)
@@ -194,8 +222,7 @@ class Figrid():
         return
 
     def axisArgs(self, axisParams, slc = None):
-        if slc is None:
-            slc = (slice(None), slice(None))
+        slc = self._getSlice(slc)
 
         def _panelAxis(axis):
             axis.set(**axisParams)
@@ -213,8 +240,7 @@ class Figrid():
     def _makeLegend(self):
         legendParams = self.legend_params
         slc = self.legend_slc
-        if slc is None:
-            slc = (slice(None), slice(None))
+        slc = self._getSlice(slc)
 
         def _panelLegend(axis):
             axis.legend(**legendParams)
@@ -319,17 +345,17 @@ class Figrid():
         self._makeRowLabels()
         return
 
-    def setFunc(self, attrs, func, slc = None):
-        if slc is None:
-            slc = (slice(None), slice(None))
+    # def setFunc(self, attrs, func, slc = None):
+    #     if slc is None:
+    #         slc = (slice(None), slice(None))
         
-        def _panelFunc(panel):
-            panel.setFunc(attrs, func)
-            return
+    #     def _panelFunc(panel):
+    #         panel.setFunc(attrs, func)
+    #         return
         
-        funcnp = np.vectorize(_panelFunc, cache = True)
-        funcnp(self.panels[slc])
-        return
+    #     funcnp = np.vectorize(_panelFunc, cache = True)
+    #     funcnp(self.panels[slc])
+    #     return
     
     def makeFills(self, attrs, fillKwargs = {}, slc = None):
         
