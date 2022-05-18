@@ -416,24 +416,28 @@ class DataSort():
             initslc = (slice(0, fg_init.dim[0]), slice(None))
 
             fg_init.row_labels.extend(fg_add.row_labels)
+            fg_init.row_values.extend(fg_add.row_values)
         elif loc == 'top':
             nrows += fg_add.dim[0]
             newslc = (slice(0, fg_add.dim[0]), slice(None))
             initslc = (slice(fg_add.dim[0], None), slice(None))
 
             fg_init.row_labels = fg_add.row_labels.extend(fg_init.row_labels)
+            fg_init.row_values = fg_add.row_values.extend(fg_init.row_values)
         elif loc == 'right':
             ncols += fg_add.dim[1]
             newslc = (slice(None), slice(fg_init.dim[1], None))
             initslc = (slice(None), slice(0, fg_init.dim[1]))
 
             fg_init.col_labels.extend(fg_add.col_labels)
+            fg_init.col_values.extend(fg_add.col_values)
         elif loc == 'left':
             ncols += fg_add.dim[1]
             newslc = (slice(None), slice(0, fg_add.dim[1]))
             initslc = (slice(None), slice(fg_add.dim[1], None))
 
             fg_init.col_labels = fg_add.col_labels.extend(fg_init.col_labels)
+            fg_init.col_values = fg_add.col_values.extend(fg_init.col_values)
         else:
             raise ValueError('not accepted location')
         heights = np.zeros(nrows)
