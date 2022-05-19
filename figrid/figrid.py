@@ -468,6 +468,6 @@ class Figrid():
         return
     
     def save(self, path):
-        self.fig.savefig(path, bbox_inches = 'tight', facecolor = 'auto')
+        self.fig.savefig(path, bbox_inches = 'tight')
         return
     
