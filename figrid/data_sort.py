@@ -408,10 +408,12 @@ class DataSort():
         return figrid
     
      
-    def combineFigrids(self, fg_init, fg_add, loc = 'bottom'):
+    def combineFigrids(self, fg_init, fg_add, loc = 'bottom', spacing = None):
         nrows = fg_init.dim[0]
         ncols = fg_init.dim[1]
-        
+        hspace = fg_init.hspace / fg_init.panel_length
+        wspace = fg_init.wspace / fg_init.panel_length
+
         if loc == 'bottom':
             nrows += fg_add.dim[0]
             newslc = (slice(fg_init.dim[0], None), slice(None))
@@ -419,6 +421,17 @@ class DataSort():
 
             fg_init.row_labels.extend(fg_add.row_labels)
             fg_init.row_values.extend(fg_add.row_values)
+            
+            new_hspace = np.zeros(nrows - 1)
+            transidx = len(hspace)
+            new_hspace[:transidx] = hspace[:]
+            if not spacing is None:
+                new_hspace[transidx] = spacing
+            else:
+                new_hspace[transidx] = hspace[-1]
+            if len(new_hspace) > transidx + 1:
+                new_hspace[transidx+1:] = fg_add.hspace[:]
+            new_wspace = wspace
         elif loc == 'top':
             nrows += fg_add.dim[0]
             newslc = (slice(0, fg_add.dim[0]), slice(None))
@@ -426,6 +439,17 @@ class DataSort():
 
             fg_init.row_labels = fg_add.row_labels.extend(fg_init.row_labels)
             fg_init.row_values = fg_add.row_values.extend(fg_init.row_values)
+
+            new_hspace = np.zeros(nrows - 1)
+            transidx = len(fg_add.hspace)
+            new_hspace[transidx:] = hspace[:]
+            if not spacing is None:
+                new_hspace[transidx] = spacing
+            else:
+                new_hspace[transidx] = hspace[0]
+            if transidx - 1 >= 0:
+                new_hspace[:transidx - 1] = fg_add.hspace[:]
+            new_wspace = wspace
         elif loc == 'right':
             ncols += fg_add.dim[1]
             newslc = (slice(None), slice(fg_init.dim[1], None))
@@ -433,6 +457,17 @@ class DataSort():
 
             fg_init.col_labels.extend(fg_add.col_labels)
             fg_init.col_values.extend(fg_add.col_values)
+            
+            new_wspace = np.zeros(nrows - 1)
+            transidx = len(wspace)
+            new_wspace[:transidx] = wspace[:]
+            if not spacing is None:
+                new_wspace[transidx] = spacing
+            else:
+                new_wspace[transidx] = wspace[-1]
+            if len(new_wspace) > transidx + 1:
+                new_wspace[transidx+1:] = fg_add.wspace[:]
+            new_hspace = hspace
         elif loc == 'left':
             ncols += fg_add.dim[1]
             newslc = (slice(None), slice(0, fg_add.dim[1]))
@@ -440,6 +475,17 @@ class DataSort():
 
             fg_init.col_labels = fg_add.col_labels.extend(fg_init.col_labels)
             fg_init.col_values = fg_add.col_values.extend(fg_init.col_values)
+
+            new_wspace = np.zeros(nrows - 1)
+            transidx = len(fg_add.wspace)
+            new_wspace[transidx:] = wspace[:]
+            if not spacing is None:
+                new_wspace[transidx] = spacing
+            else:
+                new_wspace[transidx] = wspace[0]
+            if transidx - 1 >= 0:
+                new_wspace[:transidx - 1] = fg_add.wspace[:]
+            new_hspace = hspace
         else:
             raise ValueError('not accepted location')
         heights = np.zeros(nrows)
@@ -447,12 +493,7 @@ class DataSort():
         heights[initslc[0]] = fg_init.panel_heights
         widths[initslc[1]] = fg_init.panel_widths
         
-        hspaces = np.ones(nrows - 1) * fg_init.hspace[0] / fg_init.panel_length
-        wspaces = np.ones(ncols - 1) * fg_init.wspace[0] / fg_init.panel_length
-        print(hspaces)
-        print(wspaces)
         if loc == 'bottom' or loc == 'top':
-
             heights[newslc[0]] = fg_add.panel_heights
         elif loc == 'left' or loc == 'right':
             widths[newslc[1]] = fg_add.panel_widths
@@ -461,8 +502,8 @@ class DataSort():
         fgargs = copy.deepcopy(self.figrid_args)
         fgargs['height_ratios'] = heights
         fgargs['width_ratios'] = widths
-        fgargs['wspace'] = wspaces
-        fgargs['hspace'] = hspaces
+        fgargs['wspace'] = new_wspace
+        fgargs['hspace'] = new_hspace
         fg_init.makeFig(nrows, ncols, **fgargs)
         for xory in self.tick_args:
             for which in self.tick_args[xory]:
