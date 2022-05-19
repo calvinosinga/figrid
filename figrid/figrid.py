@@ -83,12 +83,12 @@ class Figrid():
         # default behavior for padding
         paddim = [max(1, ncols - 1), max(1, nrows - 1)]
         if isinstance(wspace, float) or isinstance(wspace, int):
-            if paddim[0] == 1:
+            if ncols == 1:
                 wspace = np.zeros(1)
             else:
                 wspace = np.ones(paddim[0]) * wspace
         if isinstance(hspace, float) or isinstance(hspace, int):
-            if paddim[1] == 1:
+            if nrows == 1:
                 hspace = np.zeros(1)
             else:
                 hspace = np.ones(paddim[1]) * hspace
