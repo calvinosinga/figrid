@@ -83,9 +83,15 @@ class Figrid():
         # default behavior for padding
         paddim = [max(1, ncols - 1), max(1, nrows - 1)]
         if isinstance(wspace, float) or isinstance(wspace, int):
-            wspace = np.ones(paddim[0]) * wspace
+            if paddim[0] == 1:
+                wspace = np.zeros(1)
+            else:
+                wspace = np.ones(paddim[0]) * wspace
         if isinstance(hspace, float) or isinstance(hspace, int):
-            hspace = np.ones(paddim[1]) * hspace
+            if paddim[1] == 1:
+                hspace = np.zeros(1)
+            else:
+                hspace = np.ones(paddim[1]) * hspace
 
         # default behavior for ratios
         if height_ratios is None:
