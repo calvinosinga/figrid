@@ -12,11 +12,12 @@ class DataSort():
         self.figrid_args = {}
         self.attr_orders = {}
         self.legend_args = {}
+        # self.spine_args = {}
         self.legend_slice = None
         self.attr_args = {}
         self.fig_args = {}
         self.display_names = {}
-        self.axis_labels = {}
+        self.axis_label_args = {}
         self.row_label_args = {}
         self.col_label_args = {}
         return
@@ -166,6 +167,31 @@ class DataSort():
         self.figrid_args.update(fgrid_args)
         return
     
+    # def spineArgs(self, spine_args, which = 'all'):
+    #     if which == 'all':
+    #         axes = ['bottom', 'top', 'right', 'left']
+    #         for a in axes:
+    #             if a not in self.spine_args:
+    #                 self.spine_args[a] = {}
+    #             self.spine_args[a].update(spine_args)
+    #     elif which == 'y':
+    #         axes = ['bottom', 'top']
+    #         for a in axes:
+    #             if a not in self.spine_args:
+    #                 self.spine_args[a] = {}
+    #             self.spine_args[a].update(spine_args)
+    #     elif which == 'x':
+    #         axes = ['left', 'right']
+    #         for a in axes:
+    #             if a not in self.spine_args:
+    #                 self.spine_args[a] = {}
+    #             self.spine_args[a].update(spine_args)
+    #     else:
+    #         if which not in self.spine_args:
+    #             self.spine_args[which] = {}
+    #         self.spine_args[which].update(spine_args)
+    #     return
+    
     def legendArgs(self, leg_args, slc = None):
         self.legend_args.update(leg_args)
         self.legend_slice = slc
@@ -183,9 +209,10 @@ class DataSort():
         self.attr_args[attr][val].update(args)
         return
 
-    def setAxisLabel(self, xory, label, pos = [], 
-            txtkw = {}):
-        self.axis_labels[xory] = (label, pos, txtkw)
+    def axisLabelArgs(self, xory, txtargs):
+        if xory not in self.axis_label_args:
+            self.axis_label_args[xory] = {}
+        self.axis_label_args[xory].update(txtargs)
         return
     
     def rowLabelArgs(self, row_attr = '_default_', 
@@ -386,12 +413,11 @@ class DataSort():
                 figrid.tickArgs(self.tick_args[xory][which], xory, which)
 
         figrid.axisArgs(self.axis_args)
+        # for which in self.spine_args:
+        #     figrid.spineArgs(self.spine_args[which], which)
         figrid.legendArgs(self.legend_args, self.legend_slice)
 
-        if 'x' in self.axis_labels:
-            figrid.setXLabel(*self.axis_labels['x'])
-        if 'y' in self.axis_labels:
-            figrid.setYLabel(*self.axis_labels['y'])
+        figrid.axisLabelArgs(self.axis_label_args)
                     
         if row_attr in self.row_label_args:
             figrid.rowLabelArgs(row_labels, 
@@ -413,6 +439,10 @@ class DataSort():
         ncols = fg_init.dim[1]
         hspace = fg_init.hspace / fg_init.panel_length
         wspace = fg_init.wspace / fg_init.panel_length
+
+        if len(hspace) == 0 and len(fg_add.hspace) == 0:
+            raise ValueError("for two figrids of length 1 must" + \
+                " define a spacing.")
 
         if loc == 'bottom':
             nrows += fg_add.dim[0]
@@ -512,10 +542,10 @@ class DataSort():
         fg_init.axisArgs(self.axis_args)
         fg_init.legendArgs(self.legend_args, self.legend_slice)
 
-        if 'x' in self.axis_labels:
-            fg_init.setXLabel(*self.axis_labels['x'])
-        if 'y' in self.axis_labels:
-            fg_init.setYLabel(*self.axis_labels['y'])
+        if 'x' in self.axis_label_args:
+            fg_init.setXLabel(*self.axis_label_args['x'])
+        if 'y' in self.axis_label_args:
+            fg_init.setYLabel(*self.axis_label_args['y'])
                     
         fg_init.rowLabelArgs(fg_init.row_labels, *fg_init.row_label_args)
         fg_init.colLabelArgs(fg_init.col_labels, *fg_init.col_label_args)

@@ -17,7 +17,7 @@ class Figrid():
         self.attr_args = {}
         self.fig_params = {}
         self.display_names = {}
-        self.axis_labels = {}
+        self.axis_label_args = {'x':{}, 'y':{}, 'both':{}}
         self.row_label_args = ()
         self.col_label_args = ()
         self.row_labels = []
@@ -84,12 +84,12 @@ class Figrid():
         paddim = [max(1, ncols - 1), max(1, nrows - 1)]
         if isinstance(wspace, float) or isinstance(wspace, int):
             if ncols == 1:
-                wspace = np.zeros(1)
+                wspace = np.zeros(0)
             else:
                 wspace = np.ones(paddim[0]) * wspace
         if isinstance(hspace, float) or isinstance(hspace, int):
             if nrows == 1:
-                hspace = np.zeros(1)
+                hspace = np.zeros(0)
             else:
                 hspace = np.ones(paddim[1]) * hspace
 
@@ -173,8 +173,7 @@ class Figrid():
     ##### INTERFACING WITH DATA CONTAINERS ##########################
 
     def plotArgs(self, attrs, plotArgs, slc = None):
-        if slc is None:
-            slc = (slice(None), slice(None))
+        slc = self._getSlice(slc)
 
         def _panelArgs(panel):
             for dc in panel:
@@ -234,6 +233,21 @@ class Figrid():
         ticknp(self.axes[slc])
         return
 
+    def spineArgs(self, spine_args, which = 'all', slc = None):
+        slc = self._getSlice(slc)
+
+        def _setSpine(axis):
+            if which == 'all':
+                spines = ['bottom', 'top', 'right', 'left']
+                for s in spines:
+                    axis.spines[s].set(**spine_args)
+            else:
+                axis.spines[which].set(**spine_args)
+
+        spinenp = np.vectorize(_setSpine, cache=True)
+        spinenp(self.axes[slc])
+        return
+
     def axisArgs(self, axisParams, slc = None):
         slc = self._getSlice(slc)
 
@@ -245,6 +259,10 @@ class Figrid():
         axisnp(self.axes[slc])
         return
 
+    def figArgs(self, figArgs):
+        self.fig.set(**figArgs)
+        return
+    
     def legendArgs(self, legendParams, slc = None):
         self.legend_params.update(legendParams)
         self.legend_slc = slc
@@ -303,12 +321,26 @@ class Figrid():
                         transform = p.transAxes, **textKwargs)
         return
 
-    def rowLabelArgs(self, rowlabels, pos = [], textKwargs = {},
+    def rowLabelArgs(self, rowlabels = [], pos = [], textKwargs = {},
             colidx = 0):
+        if rowlabels:
+            self.row_labels = rowlabels
+        
+        if self.row_label_args:
+            if not pos:
+                pos = self.row_label_args[0]
+            
+            temp = self.row_label_args[1]
+            temp.update(textKwargs)
+            textKwargs = temp
+            if colidx is None:
+                colidx = self.row_label_args[2]
+        
         if not pos:
-            pos = [0.05, 0.05]
-
-        self.row_labels = rowlabels
+            pos = [0.5, 0.9]
+        
+        if colidx is None:
+            colidx = 0
         self.row_label_args = (pos, textKwargs, colidx)
         return
     
@@ -324,12 +356,28 @@ class Figrid():
                         transform = p.transAxes, **textKwargs)
         return
     
-    def colLabelArgs(self, collabels, pos = [], textKwargs = {},
-            rowidx = 0):
+    def colLabelArgs(self, collabels = [], pos = [], textKwargs = {},
+            rowidx = None):
+        
+        if collabels:
+            self.col_labels = collabels
+        
+        if self.col_label_args:
+            if not pos:
+                pos = self.col_label_args[0]
+            
+            temp = self.col_label_args[1]
+            temp.update(textKwargs)
+            textKwargs = temp
+            
+            if rowidx is None:
+                rowidx = self.col_label_args[2]
+        
         if not pos:
             pos = [0.5, 0.9]
-
-        self.col_labels = collabels
+        
+        if rowidx is None:
+            rowidx = 0
         self.col_label_args = (pos, textKwargs, rowidx)
         return
     
@@ -358,27 +406,31 @@ class Figrid():
         self._makeRowLabels()
         return
 
-    # def setFunc(self, attrs, func, slc = None):
-    #     if slc is None:
-    #         slc = (slice(None), slice(None))
+    def setFunc(self, attrs, func, slc = None):
+        slc = self._getSlice(slc)
         
-    #     def _panelFunc(panel):
-    #         panel.setFunc(attrs, func)
-    #         return
-        
-    #     funcnp = np.vectorize(_panelFunc, cache = True)
-    #     funcnp(self.panels[slc])
-    #     return
-    
-    def makeFills(self, attrs, fillKwargs = {}, slc = None):
-        
-        if slc is None:
-            slc = (slice(None), slice(None))
-        
-        def _panelFill(panel):
-            data = None
+        def _panelFunc(panel):
             for dc in panel:
                 if dc.isMatch(attrs):
+                    dc.setFunc(func)
+            return
+        
+        funcnp = np.vectorize(_panelFunc, cache = True)
+        funcnp(self.panels[slc])
+        return
+    
+    def fill(self, attrs, fillKwargs = {}, slc = None):
+        
+        slc = self._getSlice(slc)
+
+        def _panelFill(panel):
+            data = None
+            x = 0; ymins = 0; ymaxs = 0
+            labels = []; colors = []
+            match_found = False
+            for dc in panel:
+                if dc.isMatch(attrs):
+                    match_found = True
                     if data is None:
 
                         data = dc.getData()
@@ -390,20 +442,34 @@ class Figrid():
                         x = data[0]; y = data[1]
                         ymins = np.minimum(y, ymins)
                         ymaxs = np.maximum(y, ymaxs)
-                    
+                    # TODO need to specify which ones can translate
+                    # to fill_between
+                    dcargs = dc.getArgs()
+                    if 'label' in dcargs:
+                        labels.append(dcargs['label'])
+                    if 'color' in dcargs:
+                        colors.append(dcargs['color'])
                     args = {'visible':False, 'zorder':-1,
                         'label':'_nolegend_'}
                     dc.setArgs(args)
-            filldc = DataContainer([x, ymins, ymaxs])
-            attrs['figrid_process'] = 'fill'
 
-            def _plotFill(ax, data, kwargs):
-                ax.fill_between(data[0], data[1], data[2], **kwargs)
-                return
-            
-            filldc.setFunc(_plotFill)
-            filldc.setArgs(fillKwargs)
-            self.append(filldc)
+            if match_found:
+                if len(labels) > 0:
+                    if labels.count(labels[0]) == len(labels):
+                        fillKwargs['label'] = labels[0]
+                if len(colors) > 0:
+                    if colors.count(colors[0]) == len(colors):
+                        fillKwargs['color'] = colors[0]
+                filldc = DataContainer([x, ymins, ymaxs])
+                filldc.update(attrs)
+                filldc.add('figrid_process', 'fill')
+                def _plotFill(ax, data, kwargs):
+                    ax.fill_between(data[0], data[1], data[2], **kwargs)
+                    return
+                
+                filldc.setFunc(_plotFill)
+                filldc.setArgs(fillKwargs)
+                panel.append(filldc)
             return
 
         fillnp = np.vectorize(_panelFill, cache = True)
@@ -411,17 +477,20 @@ class Figrid():
         return
 
     ##### CONVENIENCE METHODS #######################################
-
+    def axisLabelArgs(self, txtargs):
+        self.axis_label_args.update(txtargs)
+        return
+    
     def setXLabel(self, text, pos = [], txtargs = {}):
         if not pos:
             fl = self.figsize[0]
             xb = self.xborder
             pos = [(0.5 * (fl - np.sum(xb)) + xb[0]) / fl, 0]
-        
-        txtargs['ha'] = 'center'
-        txtargs['va'] = 'bottom'
-
-        self.annotateFig(text, pos, txtargs)
+        default_args = {'ha':'center', 'va':'bottom'}
+        default_args.update(self.axis_label_args['both'])
+        default_args.update(self.axis_label_args['x'])
+        default_args.update(txtargs)
+        self.annotateFig(text, pos, default_args)
         return
     
     def setYLabel(self, text, pos = [], txtargs = {}):
@@ -430,11 +499,12 @@ class Figrid():
             yb = self.yborder
             pos = [0, (0.5 * (fh - np.sum(yb)) + yb[1])/fh]
         
-        txtargs['ha'] = 'left'
-        txtargs['va'] = 'center'
-        txtargs['rotation'] = 'vertical'
-
-        self.annotateFig(text, pos, txtargs)
+        default_args = {'ha':'left', 'va':'center', 
+                'rotation':'vertical'}
+        default_args.update(self.axis_label_args['both'])
+        default_args.update(self.axis_label_args['y'])
+        default_args.update(txtargs)
+        self.annotateFig(text, pos, default_args)
         return
 
     def setDefaultTicksParams(self):
@@ -468,12 +538,27 @@ class Figrid():
         
         return
 
+    def autoFill(self, fill_kwargs = {}):
+        pa = self.panel_attr
+        panelvals = []
+        for i in range(self.dim[0]):
+            for j in range(self.dim[1]):
+                panel = self.panels[i, j]
+                for dc in panel:
+                    val = dc.get(pa)
+                    if val not in panelvals:
+                        panelvals.append(val)
+        
+        for pv in panelvals:
+            self.fill({pa:pv}, fill_kwargs)
+        return
+    
     def clf(self):
         plt.clf()
         plt.close()
         return
     
     def save(self, path):
-        self.fig.savefig(path, bbox_inches = 'tight')
+        self.fig.savefig(path, bbox_inches = 'tight', facecolor = 'auto')
         return
     
