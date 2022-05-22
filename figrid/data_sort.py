@@ -12,7 +12,7 @@ class DataSort():
         self.figrid_args = {}
         self.attr_orders = {}
         self.legend_args = {}
-        # self.spine_args = {}
+        self.spine_args = {}
         self.legend_slice = None
         self.attr_args = {}
         self.fig_args = {}
@@ -167,30 +167,30 @@ class DataSort():
         self.figrid_args.update(fgrid_args)
         return
     
-    # def spineArgs(self, spine_args, which = 'all'):
-    #     if which == 'all':
-    #         axes = ['bottom', 'top', 'right', 'left']
-    #         for a in axes:
-    #             if a not in self.spine_args:
-    #                 self.spine_args[a] = {}
-    #             self.spine_args[a].update(spine_args)
-    #     elif which == 'y':
-    #         axes = ['bottom', 'top']
-    #         for a in axes:
-    #             if a not in self.spine_args:
-    #                 self.spine_args[a] = {}
-    #             self.spine_args[a].update(spine_args)
-    #     elif which == 'x':
-    #         axes = ['left', 'right']
-    #         for a in axes:
-    #             if a not in self.spine_args:
-    #                 self.spine_args[a] = {}
-    #             self.spine_args[a].update(spine_args)
-    #     else:
-    #         if which not in self.spine_args:
-    #             self.spine_args[which] = {}
-    #         self.spine_args[which].update(spine_args)
-    #     return
+    def spineArgs(self, spine_args, which = 'all'):
+        if which == 'all':
+            axes = ['bottom', 'top', 'right', 'left']
+            for a in axes:
+                if a not in self.spine_args:
+                    self.spine_args[a] = {}
+                self.spine_args[a].update(spine_args)
+        elif which == 'y':
+            axes = ['bottom', 'top']
+            for a in axes:
+                if a not in self.spine_args:
+                    self.spine_args[a] = {}
+                self.spine_args[a].update(spine_args)
+        elif which == 'x':
+            axes = ['left', 'right']
+            for a in axes:
+                if a not in self.spine_args:
+                    self.spine_args[a] = {}
+                self.spine_args[a].update(spine_args)
+        else:
+            if which not in self.spine_args:
+                self.spine_args[which] = {}
+            self.spine_args[which].update(spine_args)
+        return
     
     def legendArgs(self, leg_args, slc = None):
         self.legend_args.update(leg_args)
