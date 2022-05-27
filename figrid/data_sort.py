@@ -31,8 +31,7 @@ class DataSort():
         for r in results:
             data = [r.xvalues, r.yvalues, r.zvalues]
             dc = DataContainer(data)
-            new_props['count'] = r.count
-            
+            dc.store('count', r.count)
             dc.update(new_props)
             dc.update(r.props)
             self.dclist.append(dc)

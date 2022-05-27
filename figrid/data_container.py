@@ -9,7 +9,7 @@ class DataContainer():
         self.attrs = {}
         self.data = data
         self.default_key = 'no key found'
-
+        self.storage = {}
         self.plotArgs = {}
         self.plotFunc = self._defaultPlot
         return
@@ -43,6 +43,9 @@ class DataContainer():
         self.data = data
         return
     
+    def store(self, name, val):
+        self.storage[name] = val
+        return
     ##### USED FOR ORGANIZING FIGURE ################################
 
     def isMatch(self, desired_attrs):
