@@ -2,7 +2,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from figrid.data_container import DataContainer
-
+import copy
 
 class Figrid():
    
@@ -175,6 +175,12 @@ class Figrid():
     def plotArgs(self, attrs, plotArgs, slc = None):
         slc = self._getSlice(slc)
 
+        # so you can specify with just string
+        is_num = isinstance(attrs, int) or isinstance(attrs, float)
+        if isinstance(attrs, str) or is_num:
+            attrs = {self.panel_attr:attrs}
+
+        # TODO if fill is made don't update args for constituent lines
         def _panelArgs(panel):
             for dc in panel:
                 if dc.isMatch(attrs):
@@ -217,7 +223,7 @@ class Figrid():
         elif isinstance(slc, tuple):
             return slc
         
-        return
+        return slc # assume user knows what they're doing
                 
                 
     def tickArgs(self, tickParams, xory = 'both', which = 'both', 
@@ -229,7 +235,7 @@ class Figrid():
             axis.tick_params(axis = xory, which = which, **tickParams)
             return
         
-        ticknp = np.vectorize(_panelTicks, cache = True)
+        ticknp = np.vectorize(_panelTicks, cache = True, otypes = [object])
         ticknp(self.axes[slc])
         return
 
@@ -244,7 +250,7 @@ class Figrid():
             else:
                 axis.spines[which].set(**spine_args)
 
-        spinenp = np.vectorize(_setSpine, cache=True)
+        spinenp = np.vectorize(_setSpine, cache=True, otypes=[object])
         spinenp(self.axes[slc])
         return
 
@@ -255,7 +261,7 @@ class Figrid():
             axis.set(**axisParams)
             return
 
-        axisnp = np.vectorize(_panelAxis, cache = True)
+        axisnp = np.vectorize(_panelAxis, cache = True, otypes = [object])
         axisnp(self.axes[slc])
         return
 
@@ -277,7 +283,7 @@ class Figrid():
             axis.legend(**legendParams)
             return
 
-        legnp = np.vectorize(_panelLegend, cache = True)
+        legnp = np.vectorize(_panelLegend, cache = True, otypes = [object])
         legnp(self.axes[slc])
         return
     
@@ -304,7 +310,7 @@ class Figrid():
             
             return
         
-        npset = np.vectorize(_setlim, cache = True)
+        npset = np.vectorize(_setlim, cache = True, otypes = [object])
 
         npset(self.axes[slc])
 
@@ -415,10 +421,37 @@ class Figrid():
                     dc.setFunc(func)
             return
         
-        funcnp = np.vectorize(_panelFunc, cache = True)
+        funcnp = np.vectorize(_panelFunc, cache = True, otypes = [object])
         funcnp(self.panels[slc])
         return
     
+    def norm(self, num_attrs, denom_attrs, ones_args = {}, idx = 1):
+        #TODO check to make sure that this doesn't change original
+        # stored data values
+        for i in range(self.dim[0]):
+            for j in range(self.dim[1]):
+                panel = self.panels[i, j]
+                norm = None
+                num_list = []
+                # find the denominator to norm by
+                for dc in panel:
+                    if dc.isMatch(denom_attrs):
+                        ddata = dc.getData()
+                        norm = copy.deepcopy(ddata[idx])
+                        ddata[idx] = np.ones_like(ddata[idx])
+                        dc.setData(ddata)
+                        dc.setArgs(ones_args)
+                    elif dc.isMatch(num_attrs):
+                        num_list.append(dc)
+                if norm is not None:
+                    for num in num_list:
+                        ndata = num.getData()
+                        ndata[idx] /= norm
+                        num.setData(ndata)
+        
+        return
+
+                        
     def fill(self, attrs, fillKwargs = {}, slc = None):
         
         slc = self._getSlice(slc)
@@ -472,7 +505,7 @@ class Figrid():
                 panel.append(filldc)
             return
 
-        fillnp = np.vectorize(_panelFill, cache = True)
+        fillnp = np.vectorize(_panelFill, cache = True, otypes=[object])
         fillnp(self.panels[slc])
         return
 
@@ -541,6 +574,7 @@ class Figrid():
     def autoFill(self, fill_kwargs = {}):
         pa = self.panel_attr
         panelvals = []
+        counts = {}
         for i in range(self.dim[0]):
             for j in range(self.dim[1]):
                 panel = self.panels[i, j]
@@ -548,11 +582,65 @@ class Figrid():
                     val = dc.get(pa)
                     if val not in panelvals:
                         panelvals.append(val)
+                        counts[val] = np.zeros(self.dim)
+                        counts[val][i, j] = 1
+                    
+                    else:
+                        counts[val][i, j] += 1
         
+
         for pv in panelvals:
-            self.fill({pa:pv}, fill_kwargs)
+            mask = counts[pv] > 1
+            self.fill({pa:pv}, fill_kwargs, mask)
         return
     
+    def autoNorm(self, denominator_attr, must_match = [], idx = 1):
+        denom_arr = np.empty(self.dim, dtype = object)
+        for i in range(self.dim[0]):
+            for j in range(self.dim[1]):
+                panel = self.panels[i, j]
+                denom_arr[i, j] = []
+                for dc in panel:
+                    if denominator_attr == dc.get(self.panel_attr):
+                        denom_arr[i, j].append(dc)
+
+
+        # print(denom_arr[0, 0])
+
+        for i in range(self.dim[0]):
+            for j in range(self.dim[1]):
+                # print(i, j)
+                panel = self.panels[i, j]
+                denoms = denom_arr[i, j]
+                for d in denoms:
+                    norm = copy.copy(d.getData()[idx])
+                    match_attrs = {}
+                    for mm in must_match:
+                        match_attrs[mm] = d.get(mm)
+                    # print(match_attrs)
+                    for dc in panel:
+                        # for mm in must_match:
+                        #     print(dc.get(mm))
+                        if dc.isMatch(match_attrs):
+                            # print('found %s'%dc.get('HI_res'))
+                            dcdata = dc.getData()
+                            # print(dcdata[idx][0])
+                            dcdata[idx][:] = dcdata[idx][:] / norm[:]
+                            # print(dcdata[idx][0])
+
+                            # print(dcdata)
+                            dc.setData(dcdata)
+    
+        return
+
+    def plotOnes(self, args = {'color':'gray', 'linestyle':'--'}):
+        for i in range(self.dim[0]):
+            for j in range(self.dim[1]):
+                ax = self.axes[i, j]
+                ax.plot(ax.get_xlim(), [1,1], **args)
+        
+        return
+
     def clf(self):
         plt.clf()
         plt.close()

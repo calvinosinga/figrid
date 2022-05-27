@@ -31,6 +31,8 @@ class DataSort():
         for r in results:
             data = [r.xvalues, r.yvalues, r.zvalues]
             dc = DataContainer(data)
+            new_props['count'] = r.count
+            
             dc.update(new_props)
             dc.update(r.props)
             self.dclist.append(dc)
@@ -96,6 +98,12 @@ class DataSort():
             self._rmMatching(rm_attrs, matches)
         return matches
     
+    def printMatching(self, desired_attrs, rm_attrs = {}):
+        matches = self.getMatching(desired_attrs, rm_attrs)
+        for m in matches:
+            print(m.attrs)
+            print()
+        return
     ##### POST-PROCESS DATA #########################################
 
     def makeFill(self, attrs, fillkwargs = {}):
@@ -262,6 +270,8 @@ class DataSort():
     def figrid(self, panel_attr, row_attr, col_attr,
             in_attrs = {}, rm_attrs = {}, figrid_args = {},
             figkw = {}):
+        #TODO having a rm_attrs means that the list of row/col attrs
+        # aren't pulled just from those that are matching
 
         # figure out the values for the row attribute that
         # are desired from in_attrs, rm_attrs, and if the
