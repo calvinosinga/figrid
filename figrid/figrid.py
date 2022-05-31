@@ -80,6 +80,10 @@ class Figrid():
         if isinstance(yborder, list):
             yborder = np.array(yborder)
 
+        if isinstance(wspace, list):
+            wspace = np.array(wspace)
+        if isinstance(hspace, list):
+            hspace = np.array(hspace)
         # default behavior for padding
         paddim = [max(1, ncols - 1), max(1, nrows - 1)]
         if isinstance(wspace, float) or isinstance(wspace, int):
@@ -387,6 +391,10 @@ class Figrid():
         self.col_label_args = (pos, textKwargs, rowidx)
         return
     
+    def annotateAxis(self, text, pos, idx, text_kwargs = {}):
+        ax = self.axes[idx]
+        ax.text(pos[0], pos[1], text, transform = ax.transAxes, **text_kwargs)
+        return
     ##### INTERFACE WITH THE FIGURE #################################
 
     def annotateFig(self, text, pos, textKwargs = {}):
@@ -634,6 +642,7 @@ class Figrid():
         return
 
     def plotOnes(self, args = {'color':'gray', 'linestyle':'--'}):
+        # add ability to make slices
         for i in range(self.dim[0]):
             for j in range(self.dim[1]):
                 ax = self.axes[i, j]

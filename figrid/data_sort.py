@@ -269,8 +269,8 @@ class DataSort():
     def figrid(self, panel_attr, row_attr, col_attr,
             in_attrs = {}, rm_attrs = {}, figrid_args = {},
             figkw = {}):
-        #TODO having a rm_attrs means that the list of row/col attrs
-        # aren't pulled just from those that are matching
+        #TODO make sure that the attrs used in row/col actually have 
+        # stuff in them
 
         # figure out the values for the row attribute that
         # are desired from in_attrs, rm_attrs, and if the
@@ -449,7 +449,7 @@ class DataSort():
         hspace = fg_init.hspace / fg_init.panel_length
         wspace = fg_init.wspace / fg_init.panel_length
 
-        if len(hspace) == 0 and len(fg_add.hspace) == 0:
+        if len(hspace) == 0 and len(fg_add.hspace) == 0 and spacing is None:
             raise ValueError("for two figrids of length 1 must" + \
                 " define a spacing.")
 
@@ -497,7 +497,7 @@ class DataSort():
             fg_init.col_labels.extend(fg_add.col_labels)
             fg_init.col_values.extend(fg_add.col_values)
             
-            new_wspace = np.zeros(nrows - 1)
+            new_wspace = np.zeros(ncols - 1)
             transidx = len(wspace)
             new_wspace[:transidx] = wspace[:]
             if not spacing is None:
@@ -515,7 +515,7 @@ class DataSort():
             fg_init.col_labels = fg_add.col_labels.extend(fg_init.col_labels)
             fg_init.col_values = fg_add.col_values.extend(fg_init.col_values)
 
-            new_wspace = np.zeros(nrows - 1)
+            new_wspace = np.zeros(ncols - 1)
             transidx = len(fg_add.wspace)
             new_wspace[transidx:] = wspace[:]
             if not spacing is None:
