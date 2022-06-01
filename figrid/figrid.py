@@ -655,7 +655,8 @@ class Figrid():
         plt.close()
         return
     
-    def save(self, path):
-        self.fig.savefig(path, bbox_inches = 'tight', facecolor = 'auto')
+    def save(self, path, 
+            save_kw = {'bbox_inches':'tight', 'facecolor':'auto'}):
+        self.fig.savefig(path, **save_kw)
         return
     
