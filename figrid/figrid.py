@@ -22,6 +22,7 @@ class Figrid():
         self.col_label_args = ()
         self.row_labels = []
         self.col_labels = []
+        self.plot_order = []
         self.legend_slc = None
         return
 
@@ -32,7 +33,7 @@ class Figrid():
             xborder = [0.33, 0], yborder = [0, 0.33], 
             height_ratios = None, 
             width_ratios = None, 
-            figkw = {}):
+            fig_kwargs = {}):
         """
         Make a figure according to the
         given specifications for the subpanels.
@@ -133,8 +134,8 @@ class Figrid():
         figwidth = total_widths + total_wspace + wborder_space
         figheight = total_heights + total_hspace + hborder_space 
 
-        figkw['figsize'] = (figwidth, figheight)
-        fig = plt.figure(**figkw)
+        fig_kwargs['figsize'] = (figwidth, figheight)
+        fig = plt.figure(**fig_kwargs)
                 
         axes = np.empty((nrows, ncols), dtype = object)
         for i in range(nrows):
@@ -176,9 +177,10 @@ class Figrid():
     
     ##### INTERFACING WITH DATA CONTAINERS ##########################
 
-    def plotArgs(self, attrs, plotArgs, slc = None):
+    def plotArgs(self, attrs, plot_kwargs = {}, slc = None, 
+            **other_kwargs):
         slc = self._getSlice(slc)
-
+        plot_kwargs.update(other_kwargs)
         # so you can specify with just string
         is_num = isinstance(attrs, int) or isinstance(attrs, float)
         if isinstance(attrs, str) or is_num:
@@ -188,7 +190,7 @@ class Figrid():
         def _panelArgs(panel):
             for dc in panel:
                 if dc.isMatch(attrs):
-                    dc.setArgs(plotArgs)
+                    dc.setArgs(plot_kwargs)
             return
         
         argnp = np.vectorize(_panelArgs)
@@ -230,51 +232,59 @@ class Figrid():
         return slc # assume user knows what they're doing
                 
                 
-    def tickArgs(self, tickParams, xory = 'both', which = 'both', 
-            slc = None):
+    def tickArgs(self, xory = 'both', which = 'both', tick_kwargs = {},
+            slc = None, **other_kwargs):
 
         slc = self._getSlice(slc)
+        tick_kwargs.update(other_kwargs)
 
         def _panelTicks(axis):
-            axis.tick_params(axis = xory, which = which, **tickParams)
+            axis.tick_params(axis = xory, which = which, **tick_kwargs)
             return
         
         ticknp = np.vectorize(_panelTicks, cache = True, otypes = [object])
         ticknp(self.axes[slc])
         return
 
-    def spineArgs(self, spine_args, which = 'all', slc = None):
+    def spineArgs(self, which = 'all', spine_kwargs = {}, slc = None):
         slc = self._getSlice(slc)
 
         def _setSpine(axis):
             if which == 'all':
                 spines = ['bottom', 'top', 'right', 'left']
                 for s in spines:
-                    axis.spines[s].set(**spine_args)
+                    axis.spines[s].set(**spine_kwargs)
             else:
-                axis.spines[which].set(**spine_args)
+                axis.spines[which].set(**spine_kwargs)
 
         spinenp = np.vectorize(_setSpine, cache=True, otypes=[object])
         spinenp(self.axes[slc])
         return
 
-    def axisArgs(self, axisParams, slc = None):
+    def plotOrder(self, order = []):
+        self.plot_order = order
+        return
+    
+    def axisArgs(self, axis_kwargs = {}, slc = None, **other_kwargs):
         slc = self._getSlice(slc)
-
+        axis_kwargs.update(other_kwargs)
         def _panelAxis(axis):
-            axis.set(**axisParams)
+            axis.set(**axis_kwargs)
             return
 
         axisnp = np.vectorize(_panelAxis, cache = True, otypes = [object])
         axisnp(self.axes[slc])
         return
 
-    def figArgs(self, figArgs):
-        self.fig.set(**figArgs)
+    def figArgs(self, fig_kwargs = {}, **other_kwargs):
+        fig_kwargs.update(other_kwargs)
+        self.fig.set(**fig_kwargs)
         return
     
-    def legendArgs(self, legendParams, slc = None):
-        self.legend_params.update(legendParams)
+    def legendArgs(self, leg_kwargs = {}, slc = None, 
+            **other_kwargs):
+        leg_kwargs.update(other_kwargs)
+        self.legend_params.update(leg_kwargs)
         self.legend_slc = slc
         return
 
@@ -331,8 +341,9 @@ class Figrid():
                         transform = p.transAxes, **textKwargs)
         return
 
-    def rowLabelArgs(self, rowlabels = [], pos = [], textKwargs = {},
-            colidx = 0):
+    def rowLabelArgs(self, rowlabels = [], pos = [], text_kwargs = {},
+            colidx = 0, **other_kwargs):
+        text_kwargs.update(other_kwargs)
         if rowlabels:
             self.row_labels = rowlabels
         
@@ -341,8 +352,8 @@ class Figrid():
                 pos = self.row_label_args[0]
             
             temp = self.row_label_args[1]
-            temp.update(textKwargs)
-            textKwargs = temp
+            temp.update(text_kwargs)
+            text_kwargs = temp
             if colidx is None:
                 colidx = self.row_label_args[2]
         
@@ -351,7 +362,7 @@ class Figrid():
         
         if colidx is None:
             colidx = 0
-        self.row_label_args = (pos, textKwargs, colidx)
+        self.row_label_args = (pos, text_kwargs, colidx)
         return
     
     def _makeColLabels(self):
@@ -366,9 +377,9 @@ class Figrid():
                         transform = p.transAxes, **textKwargs)
         return
     
-    def colLabelArgs(self, collabels = [], pos = [], textKwargs = {},
-            rowidx = None):
-        
+    def colLabelArgs(self, collabels = [], pos = [], text_kwargs = {},
+            rowidx = None, **other_kwargs):
+        text_kwargs.update(other_kwargs)
         if collabels:
             self.col_labels = collabels
         
@@ -377,8 +388,8 @@ class Figrid():
                 pos = self.col_label_args[0]
             
             temp = self.col_label_args[1]
-            temp.update(textKwargs)
-            textKwargs = temp
+            temp.update(text_kwargs)
+            text_kwargs = temp
             
             if rowidx is None:
                 rowidx = self.col_label_args[2]
@@ -388,17 +399,22 @@ class Figrid():
         
         if rowidx is None:
             rowidx = 0
-        self.col_label_args = (pos, textKwargs, rowidx)
+        self.col_label_args = (pos, text_kwargs, rowidx)
         return
     
-    def annotateAxis(self, text, pos, idx, text_kwargs = {}):
+    def annotateAxis(self, text, pos, idx, text_kwargs = {}, 
+            **other_kwargs):
+        text_kwargs.update(other_kwargs)
         ax = self.axes[idx]
-        ax.text(pos[0], pos[1], text, transform = ax.transAxes, **text_kwargs)
+        ax.text(pos[0], pos[1], text, 
+                transform = ax.transAxes, **text_kwargs)
         return
     ##### INTERFACE WITH THE FIGURE #################################
 
-    def annotateFig(self, text, pos, textKwargs = {}):
-        self.fig.text(pos[0], pos[1], text, **textKwargs)
+    def annotateFig(self, text, pos, text_kwargs = {}, 
+            **other_kwargs):
+        text_kwargs.update(other_kwargs)
+        self.fig.text(pos[0], pos[1], text, **text_kwargs)
         return
 
     ############ PLOTTING ROUTINES ##################################
@@ -406,8 +422,22 @@ class Figrid():
     def plotPanel(self, rowidx, colidx):
         idx = (rowidx, colidx)
         panel = self.panels[idx]
-        for dc in panel:
-            dc.plot(self.axes[idx])
+
+        if self.plot_order:
+            plotted_idx = []
+            for po in self.plot_order:
+                attr_dict = {self.panel_attr:po}
+                for dc in range(len(panel)):
+                    if panel[dc].isMatch(attr_dict):
+                        panel[dc].plot(self.axes[idx])
+                        plotted_idx.append(dc)
+
+            for dc in range(len(panel)):
+                if dc not in plotted_idx:
+                    panel[dc].plot(self.axes[idx])
+        else:
+            for dc in panel:
+                dc.plot(self.axes[idx])
         return
 
     def plot(self):
@@ -433,9 +463,12 @@ class Figrid():
         funcnp(self.panels[slc])
         return
     
-    def norm(self, num_attrs, denom_attrs, ones_args = {}, idx = 1):
+    def norm(self, num_attrs, denom_attrs, plot_kwargs = {}, idx = 1,
+            **other_kwargs):
         #TODO check to make sure that this doesn't change original
         # stored data values
+
+        plot_kwargs.update(other_kwargs)
         for i in range(self.dim[0]):
             for j in range(self.dim[1]):
                 panel = self.panels[i, j]
@@ -448,7 +481,7 @@ class Figrid():
                         norm = copy.deepcopy(ddata[idx])
                         ddata[idx] = np.ones_like(ddata[idx])
                         dc.setData(ddata)
-                        dc.setArgs(ones_args)
+                        dc.setArgs(plot_kwargs)
                     elif dc.isMatch(num_attrs):
                         num_list.append(dc)
                 if norm is not None:
@@ -460,8 +493,10 @@ class Figrid():
         return
 
                         
-    def fill(self, attrs, fillKwargs = {}, slc = None):
+    def fill(self, attrs, fill_kwargs = {}, slc = None, 
+            **other_kwargs):
         
+        fill_kwargs.update(other_kwargs)
         slc = self._getSlice(slc)
 
         def _panelFill(panel):
@@ -490,17 +525,18 @@ class Figrid():
                         labels.append(dcargs['label'])
                     if 'color' in dcargs:
                         colors.append(dcargs['color'])
+
+
                     args = {'visible':False, 'zorder':-1,
                         'label':'_nolegend_'}
                     dc.setArgs(args)
-
             if match_found:
                 if len(labels) > 0:
                     if labels.count(labels[0]) == len(labels):
-                        fillKwargs['label'] = labels[0]
+                        fill_kwargs['label'] = labels[0]
                 if len(colors) > 0:
                     if colors.count(colors[0]) == len(colors):
-                        fillKwargs['color'] = colors[0]
+                        fill_kwargs['color'] = colors[0]
                 filldc = DataContainer([x, ymins, ymaxs])
                 filldc.update(attrs)
                 filldc.add('figrid_process', 'fill')
@@ -509,7 +545,7 @@ class Figrid():
                     return
                 
                 filldc.setFunc(_plotFill)
-                filldc.setArgs(fillKwargs)
+                filldc.setArgs(fill_kwargs)
                 panel.append(filldc)
             return
 
@@ -518,11 +554,14 @@ class Figrid():
         return
 
     ##### CONVENIENCE METHODS #######################################
-    def axisLabelArgs(self, txtargs):
-        self.axis_label_args.update(txtargs)
+    def axisLabelArgs(self, text_kwargs, **other_kwargs):
+        text_kwargs.update(other_kwargs)
+        self.axis_label_args.update(text_kwargs)
         return
     
-    def setXLabel(self, text, pos = [], txtargs = {}):
+    def setXLabel(self, text, pos = [], text_kwargs = {},
+            **other_kwargs):
+        text_kwargs.update(other_kwargs)
         if not pos:
             fl = self.figsize[0]
             xb = self.xborder
@@ -530,11 +569,13 @@ class Figrid():
         default_args = {'ha':'center', 'va':'bottom'}
         default_args.update(self.axis_label_args['both'])
         default_args.update(self.axis_label_args['x'])
-        default_args.update(txtargs)
+        default_args.update(text_kwargs)
         self.annotateFig(text, pos, default_args)
         return
     
-    def setYLabel(self, text, pos = [], txtargs = {}):
+    def setYLabel(self, text, pos = [], text_kwargs = {},
+            **other_kwargs):
+        text_kwargs.update(other_kwargs)
         if not pos:
             fh = self.figsize[1]
             yb = self.yborder
@@ -544,7 +585,7 @@ class Figrid():
                 'rotation':'vertical'}
         default_args.update(self.axis_label_args['both'])
         default_args.update(self.axis_label_args['y'])
-        default_args.update(txtargs)
+        default_args.update(text_kwargs)
         self.annotateFig(text, pos, default_args)
         return
 
@@ -579,7 +620,8 @@ class Figrid():
         
         return
 
-    def autoFill(self, fill_kwargs = {}):
+    def autoFill(self, fill_kwargs = {}, **other_kwargs):
+        fill_kwargs.update(other_kwargs)
         pa = self.panel_attr
         panelvals = []
         counts = {}
@@ -611,13 +653,12 @@ class Figrid():
                 for dc in panel:
                     if denominator_attr == dc.get(self.panel_attr):
                         denom_arr[i, j].append(dc)
+                        dc.setArgs({'visible':False})
 
 
-        # print(denom_arr[0, 0])
 
         for i in range(self.dim[0]):
             for j in range(self.dim[1]):
-                # print(i, j)
                 panel = self.panels[i, j]
                 denoms = denom_arr[i, j]
                 for d in denoms:
@@ -625,28 +666,25 @@ class Figrid():
                     match_attrs = {}
                     for mm in must_match:
                         match_attrs[mm] = d.get(mm)
-                    # print(match_attrs)
                     for dc in panel:
-                        # for mm in must_match:
-                        #     print(dc.get(mm))
-                        if dc.isMatch(match_attrs):
-                            # print('found %s'%dc.get('HI_res'))
-                            dcdata = dc.getData()
-                            # print(dcdata[idx][0])
-                            dcdata[idx][:] = dcdata[idx][:] / norm[:]
-                            # print(dcdata[idx][0])
 
-                            # print(dcdata)
+                        if dc.isMatch(match_attrs):
+                            dcdata = dc.getData()
+                            dcdata[idx][:] = dcdata[idx][:] / norm[:]
+
                             dc.setData(dcdata)
     
         return
 
-    def plotOnes(self, args = {'color':'gray', 'linestyle':'--'}):
+    def plotOnes(self, plot_kwargs = {'color':'gray', 'linestyle':'--'},
+            **other_kwargs):
+        
+        plot_kwargs.update(other_kwargs)
         # add ability to make slices
         for i in range(self.dim[0]):
             for j in range(self.dim[1]):
                 ax = self.axes[i, j]
-                ax.plot(ax.get_xlim(), [1,1], **args)
+                ax.plot(ax.get_xlim(), [1,1], **plot_kwargs)
         
         return
 
@@ -656,7 +694,10 @@ class Figrid():
         return
     
     def save(self, path, 
-            save_kw = {'bbox_inches':'tight', 'facecolor':'auto'}):
-        self.fig.savefig(path, **save_kw)
+            save_kwargs = {'bbox_inches':'tight', 'facecolor':'auto'},
+            **other_kwargs):
+        
+        save_kwargs.update(other_kwargs)
+        self.fig.savefig(path, **save_kwargs)
         return
     

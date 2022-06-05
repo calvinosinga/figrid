@@ -1,15 +1,17 @@
 from figrid.data_container import DataContainer
 from figrid.figrid import Figrid
 import copy
+import h5py as hp
 import numpy as np
 
 
 class DataSort():
     def __init__(self, dclist = []):
         self.dclist = dclist
+
         self.tick_args = {}
-        self.axis_args = {}
-        self.figrid_args = {}
+        self.axis_args = {'panel':{}, 'row':{}, 'col':{}}
+        self.gspec_args = {}
         self.attr_orders = {}
         self.legend_args = {}
         self.spine_args = {}
@@ -24,7 +26,13 @@ class DataSort():
     
     ##### I/O METHODS ###############################################
 
-    def loadHdf5(self):
+    def loadHdf5(self, path):
+        f = hp.File(path, 'r')
+        for k in list(f.keys()):
+            data = f[k][:]
+            dc = DataContainer(data)
+            dc.update(f[k].attrs)
+            self.dclist.append(dc)
         return
     
     def loadResults(self, results, new_props = {}):
@@ -68,7 +76,7 @@ class DataSort():
         
         return unique_vals
 
-    def getData(self):
+    def getList(self):
         return self.dclist
         
     def _rmMatching(self, desired_attrs, dclist):
@@ -105,7 +113,10 @@ class DataSort():
         return
     ##### POST-PROCESS DATA #########################################
 
-    def makeFill(self, attrs, fillkwargs = {}):
+    def makeFill(self, attrs, fill_kwargs, **other_kwargs):
+
+        fill_kwargs.update(other_kwargs)
+
         attrs = copy.deepcopy(attrs)
         attrs['figrid_process'] = 'no key found'
         matches = self.getMatching(attrs)
@@ -136,8 +147,8 @@ class DataSort():
             
             takedefault = ['color', 'label', 'alpha']
             for td in takedefault:
-                if td in default_args and td not in fillkwargs:
-                    fillkwargs[td] = default_args[td]
+                if td in default_args and td not in fill_kwargs:
+                    fill_kwargs[td] = default_args[td]
                 
             def _plotFill(ax, data, kwargs):
                 ax.fill_between(data[0], data[1], data[2], **kwargs)
@@ -145,13 +156,37 @@ class DataSort():
             
             filldc.setFunc(_plotFill)
 
-            filldc.setArgs(fillkwargs)
+            filldc.setArgs(fill_kwargs)
             self.append(filldc)
         return
     
     ##### INTERFACING WITH FIGRID ###################################
 
-    def tickArgs(self, tick_args, xory = 'both', which = 'both'):
+    def tickArgs(self, xory = 'both', 
+            which = 'both', tick_kwargs = {}, **other_kwargs):
+        """
+        Specify the tick keyword arguments to use as a default
+        for any figrids that are created. Keyword arguments must
+        be compatible with tick_params(...) method in mpl.
+
+        Saved to tick_args as a dictionary with data structure:
+        xory -> which -> args
+
+        The user can either give a dictionary for the keywords or 
+        give them as keywords in the tickArgs(...) function itself.
+        
+        Args:
+            tick_kwargs (dict, optional): Dictionary of keyword
+                arguments. Defaults to {}.
+            xory (str, optional): specifies which axis to apply each to. 
+                Can be 'x', 'y' or 'both'. Defaults to 'both'.
+            which (str, optional): specifies which types of ticks
+                to apply the args to. Can be 'major', 'minor' or 'both'.
+                Defaults to 'both'.
+        """
+        
+        tick_kwargs.update(other_kwargs)
+
         tp = self.tick_args
         if not xory in tp:
             tp[xory] = {}
@@ -159,48 +194,110 @@ class DataSort():
         if not which in tp[xory]:
             tp[xory][which] = {}
         
-        tp[xory][which].update(tick_args)
+        tp[xory][which].update(tick_kwargs)
         return
     
-    def axisArgs(self, axis_args):
-        self.axis_args.update(axis_args)
+    def axisArgs(self, panel_attr = '_default_',
+            row_attr = '_default_', col_attr = '_default_',
+            axis_kwargs = {}, **other_kwargs):
+        """
+        Specify the Axis keyword arguments (the mpl object) to use
+        for any figrids that are created. Keyword arguments must
+        be compatible with Axis.set(...) method in mpl.
+        
+        One can specify row/col attributes, so if a figrid is 
+        created with the corresponding attribute along its rows
+        or columns it'll use those arguments instead.
+
+        Saved to axis_args as a dictionary with data structure:
+        panel/row/col -> panel/row/col attribute -> axis_args
+
+        The user can either give a dictionary for the keywords or 
+        give them as keywords in the axisArgs(...) function itself.
+        
+        Args:
+            axis_kwargs (dict, optional): axis keyword arguments. 
+                Defaults to {}.
+            panel_attr (str, optional): will only use the given 
+                arguments if a figrid has this panel_attr. Will use
+                '_default_' otherwise. Defaults to '_default_'.
+            row_attr (str, optional): will only use the given 
+                arguments if a figrid has this row_attr.
+                Will use '_default_' arguments otherwise. 
+                Defaults to '_default_'.
+            col_attr (str, optional): will only use the given 
+                arguments if a figrid has this col_attr.
+                Will use '_default_' arguments otherwise. 
+                Defaults to '_default_'.
+        """
+        axis_kwargs.update(other_kwargs)
+        ### TEMPORARY ###
+        if 'panel' not in self.axis_args:
+            self.axis_args['panel'] = {}
+        if 'row' not in self.axis_args:
+            self.axis_args['row'] = {}
+        if 'col' not in self.axis_args:
+            self.axis_args['col'] = {}
+        ############
+        
+        pa = self.axis_args['panel']
+        ra = self.axis_args['row']
+        ca = self.axis_args['col']
+        if panel_attr not in pa:
+            pa[panel_attr] = {}
+        pa[panel_attr].update(axis_kwargs)
+
+        if row_attr not in ra:
+            ra[row_attr] = {}
+        ra[row_attr].update(axis_kwargs)
+        
+        if col_attr not in ca:
+            ca[col_attr] = {}
+        ca[col_attr].update(axis_kwargs)
+
         return
 
-    def figArgs(self, fig_args):
-        self.fig_args.update(fig_args)
+    def figArgs(self, fig_kwargs = {}, **other_kwargs):
+        fig_kwargs.update(other_kwargs)
+        self.fig_args.update(fig_kwargs)
         return
     
-    def figridArgs(self, fgrid_args):
-        self.figrid_args.update(fgrid_args)
+    def gspecArgs(self, gspec_kwargs = {}, **other_kwargs):
+        gspec_kwargs.update(other_kwargs)
+        self.gspec_args.update(gspec_kwargs)
         return
     
-    def spineArgs(self, spine_args, which = 'all'):
+    def spineArgs(self, which = 'all', spine_kwargs = {},
+            **other_kwargs):
+        spine_kwargs.update(other_kwargs)
+
         if which == 'all':
             axes = ['bottom', 'top', 'right', 'left']
             for a in axes:
                 if a not in self.spine_args:
                     self.spine_args[a] = {}
-                self.spine_args[a].update(spine_args)
+                self.spine_args[a].update(spine_kwargs)
         elif which == 'y':
             axes = ['bottom', 'top']
             for a in axes:
                 if a not in self.spine_args:
                     self.spine_args[a] = {}
-                self.spine_args[a].update(spine_args)
+                self.spine_args[a].update(spine_kwargs)
         elif which == 'x':
             axes = ['left', 'right']
             for a in axes:
                 if a not in self.spine_args:
                     self.spine_args[a] = {}
-                self.spine_args[a].update(spine_args)
+                self.spine_args[a].update(spine_kwargs)
         else:
             if which not in self.spine_args:
                 self.spine_args[which] = {}
-            self.spine_args[which].update(spine_args)
+            self.spine_args[which].update(spine_kwargs)
         return
     
-    def legendArgs(self, leg_args, slc = None):
-        self.legend_args.update(leg_args)
+    def legendArgs(self, slc = None, leg_kwargs = {}, **other_kwargs):
+        leg_kwargs.update(other_kwargs)
+        self.legend_args.update(leg_kwargs)
         self.legend_slice = slc
         return
 
@@ -208,28 +305,35 @@ class DataSort():
         self.attr_orders[attr] = order
         return
     
-    def plotArgs(self, attr, val, args):
+    def plotArgs(self, attr, val, plot_kwargs, **other_kwargs):
+        plot_kwargs.update(other_kwargs)
         if attr not in self.attr_args:
             self.attr_args[attr] = {}
         if val not in self.attr_args[attr]:
             self.attr_args[attr][val] = {}
-        self.attr_args[attr][val].update(args)
+        self.attr_args[attr][val].update(plot_kwargs)
         return
 
-    def axisLabelArgs(self, xory, txtargs):
+    def axisLabelArgs(self, xory = 'both', text_kwargs = {},
+            **other_kwargs):
+        text_kwargs.update(other_kwargs)
         if xory not in self.axis_label_args:
             self.axis_label_args[xory] = {}
-        self.axis_label_args[xory].update(txtargs)
+        self.axis_label_args[xory].update(text_kwargs)
         return
     
     def rowLabelArgs(self, row_attr = '_default_', 
-            pos = [], txtkw = {}, colidx = 0):
-        self.row_label_args[row_attr] = (pos, txtkw, colidx)
+            pos = [], text_kwargs = {}, colidx = 0,
+            **other_kwargs):
+        text_kwargs.update(other_kwargs)
+        self.row_label_args[row_attr] = (pos, text_kwargs, colidx)
         return
     
     def colLabelArgs(self, col_attr = '_default_', 
-            pos = [], txtkw = {}, rowidx = 0):
-        self.col_label_args[col_attr] = (pos, txtkw, rowidx)
+            pos = [], text_kwargs = {}, rowidx = 0,
+            **other_kwargs):
+        text_kwargs.update(other_kwargs)
+        self.col_label_args[col_attr] = (pos, text_kwargs, rowidx)
         return
 
     def displayAs(self, attr, vals, names):
@@ -267,8 +371,8 @@ class DataSort():
         return
 
     def figrid(self, panel_attr, row_attr, col_attr,
-            in_attrs = {}, rm_attrs = {}, figrid_args = {},
-            figkw = {}):
+            in_attrs = {}, rm_attrs = {}, gspec_kwargs = {},
+            fig_kwargs = {}):
         #TODO make sure that the attrs used in row/col actually have 
         # stuff in them
 
@@ -411,33 +515,53 @@ class DataSort():
         
         figrid = Figrid(panels, panel_attr, row_values, col_values)
         fa = copy.deepcopy(self.fig_args)
-        fa.update(figkw)
-        fgargs = copy.deepcopy(self.figrid_args)
-        fgargs.update(figrid_args)
-        # figrid_args.update(copy.deepcopy(self.figrid_args))
+        fa.update(fig_kwargs)
+        fgargs = copy.deepcopy(self.gspec_args)
+        fgargs.update(gspec_kwargs)
         fgargs['figkw'] = fa
         figrid.makeFig(nrows, ncols, **fgargs)
         for xory in self.tick_args:
             for which in self.tick_args[xory]:
                 figrid.tickArgs(self.tick_args[xory][which], xory, which)
 
-        figrid.axisArgs(self.axis_args)
-        # for which in self.spine_args:
-        #     figrid.spineArgs(self.spine_args[which], which)
+        pa = self.axis_args['panel']
+        ra = self.axis_args['row']
+        ca = self.axis_args['col']
+        if col_attr in ca:
+            figrid.axisArgs(ca[col_attr])
+        elif '_default_' in ca:
+            figrid.axisArgs(ca['_default_'])
+        
+        if row_attr in ra:
+            figrid.axisArgs(ra[row_attr])
+        elif '_default_' in ca:
+            figrid.axisArgs(ra['_default_'])
+
+        if panel_attr in pa:
+            figrid.axisArgs(pa[panel_attr])
+        elif '_default_' in pa:
+            figrid.axisArgs(pa['_default_'])
+
+        for which in self.spine_args:
+            figrid.spineArgs(self.spine_args[which], which)
+        
         figrid.legendArgs(self.legend_args, self.legend_slice)
 
+        if panel_attr in self.attr_orders:
+            figrid.plotOrder(self.attr_orders[panel_attr])
+        
         figrid.axisLabelArgs(self.axis_label_args)
                     
         if row_attr in self.row_label_args:
             figrid.rowLabelArgs(row_labels, 
                     *self.row_label_args[row_attr])
-        elif '_default_' in self.row_label_args and not row_attr == '':
+        elif '_default_' in self.row_label_args:
             figrid.rowLabelArgs(row_labels, 
                     *self.row_label_args['_default_'])
         
         if col_attr in self.col_label_args:
             figrid.colLabelArgs(col_labels, *self.col_label_args[col_attr])
-        elif '_default_' in self.col_label_args and not col_attr == '':
+        elif '_default_' in self.col_label_args:
             figrid.colLabelArgs(col_labels, *self.col_label_args['_default_'])
         
         return figrid
@@ -538,7 +662,7 @@ class DataSort():
             widths[newslc[1]] = fg_add.panel_widths
         
         # pl = max(np.max(heights), np.max(widths))
-        fgargs = copy.deepcopy(self.figrid_args)
+        fgargs = copy.deepcopy(self.gspec_args)
         fgargs['height_ratios'] = heights
         fgargs['width_ratios'] = widths
         fgargs['wspace'] = new_wspace
