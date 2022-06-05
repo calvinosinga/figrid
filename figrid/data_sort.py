@@ -239,7 +239,7 @@ class DataSort():
         if 'col' not in self.axis_args:
             self.axis_args['col'] = {}
         ############
-        
+
         pa = self.axis_args['panel']
         ra = self.axis_args['row']
         ca = self.axis_args['col']
