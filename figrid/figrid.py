@@ -11,66 +11,125 @@ class Figrid():
         self.col_values = col_values
         self.panel_attr = panel_attr
         self.panels = panels
-        self.tick_params = {}
-        self.axis_params = {}
-        self.legend_params = {}
-        self.attr_args = {}
-        self.fig_params = {}
-        self.display_names = {}
-        self.axis_label_args = {'x':{}, 'y':{}, 'both':{}}
-        self.row_label_args = ()
-        self.col_label_args = ()
-        self.row_labels = []
-        self.col_labels = []
-        self.plot_order = []
+        self.panelsize = [3, 3]
+        self.dim = panels.shape
+        self.rm_legend = False
+
+        empty_types = {'both':{}, 'major':{}, 'minor':{}}
+        empty_ticks = {}; axes_list = ['x', 'y', 'both']
+        for a in axes_list:
+            empty_ticks[a] = copy.deepcopy(empty_types)
+        self.tick_args = self._emptyDicts(panels.shape, empty_ticks)
+
+        self.axis_args = self._emptyDicts(panels.shape, {})
+
+        self.leg_args = {}
         self.legend_slc = None
+
+        self.gspec_args = {}
+        gspec_args = {
+            'height_ratios' : np.ones(self.dim[0]),
+            'width_ratios' : np.ones(self.dim[1]),
+            'hspace' : 0.25,
+            'wspace' : 0.25,
+            'xborder' : np.array([0.33, 0]),
+            'yborder' : np.array([0, 0.33])
+        }
+        self.gspecArgs(gspec_args)
+        
+        self.fig_args = {}
+        self.calculateFigsize()
+
+        empty_spines = {'bottom':{}, 'left':{}, 'right':{}, 'top':{}}
+        self.spine_args = self._emptyDicts(panels.shape, empty_spines)
+
+        self.axis_label_args = {'x':{}, 'y':{}, 'both':{}}
+        self.axis_label_pos = {'x':[], 'y':[]}
+        self.axis_label_text = {'x':'', 'y':''}
+
+        self.row_label_args = {'ha':'left', 'va':'bottom'}
+        self.col_label_args = {'ha':'center', 'va':'top'}
+        self.row_label_pos = [0.05, 0.05]
+        self.col_label_pos = [0.5, 0.9]
+        self.row_label_text = []
+        self.col_label_text = []
+        self.row_label_col = 0
+        self.col_label_row = 0
+
+        self.plot_order = []
+        self.fig_annotations = []
+        self.panel_annotations = []
+        self.other_plots = []
+        self.fig = None
+        self.is_plotted = False
         return
 
+    def _emptyDicts(self, shape, dict_element):
+        empty = np.empty(shape, dtype=object)
+        for i in range(shape[0]):
+            for j in range(shape[1]):
+                empty[i, j] = copy.deepcopy(dict_element)
+        return empty
+
     ########## MAKING FIGURES #####################################
+    def _makeAxes(self):
+        fig = self.fig
+        
+        ga = self.gspec_args
+        nrows = self.dim[0]; ncols = self.dim[1]
+        hrs = ga['height_ratios']
+        wrs = ga['width_ratios']
+        yb = ga['yborder']; xb = ga['xborder']
+        hs = ga['hspace']; ws = ga['wspace']
+        figsize = self.calculateFigsize()
+        figwidth = figsize[0]; figheight = figsize[1]
 
-    def makeFig(self, nrows, ncols, panel_length = 3, 
-            wspace = 0.25, hspace = 0.25, 
-            xborder = [0.33, 0], yborder = [0, 0.33], 
-            height_ratios = None, 
-            width_ratios = None, 
-            fig_kwargs = {}):
-        """
-        Make a figure according to the
-        given specifications for the subpanels.
-
-        Args:
-            nrows (int): number of rows
-            ncols (int): number of columns
-            panel_length (float): size of panel in inches.
-                Used to scale the other inputs.
-            wspace (float, np.array): the width of the padding
-                between panels, as a fraction of panel_length.
-                If a float, applies that value to all padding.
-                An array must have dimensions (ncols - 1).
-            hspace (float, np.array): the height of the padding
-                between panels, as a fraction of panel_length.
-                If a float, applies that value to all padding.
-                An array must have dimensions (nrows - 1).
-            xborder (float, np.array): the size of the padding
-                on the left and right borders of the figure.
-                As a fraction of panel_length. If given a float,
-                applies that value to both borders.
-            yborder (float, np.array): the size of the padding
-                on the top and bottom borders of the figure.
-                As a fraction of panel_length. If given a float,
-                applies that value to both borders.
-            height_ratios (list, np.array, optional): the 
-                respective heights of each the panels in the 
-                corresponding rows. Must have dimensions (nrows). 
-                As a fraction of panel_length. 
-            width_ratios (list, np.array, optional): the respective heights
-                of each the panels in the corresponding rows. Must
-                have dimensions (nrows). As a fraction of 
-                panel_length. 
-            dpi (float, optional): dots per inch, the resolution of the
-                figure.
-        """
-
+        panel_width = self.panelsize[0]
+        panel_height = self.panelsize[1]
+        width_ratios = wrs * panel_width; height_ratios = hrs * panel_height
+        xborder = xb * panel_width; yborder = yb * panel_height
+        wspace = ws * panel_width; hspace = hs * panel_height
+        
+        
+        axes = np.empty((nrows, ncols), dtype = object)
+        for i in range(nrows):
+            for j in range(ncols):
+                # a label makes each axis unique - otherwise mpl will
+                # return a previously made axis
+                
+                ax = fig.add_subplot(label = str((i, j)))
+                
+                height = height_ratios[i]
+                width = width_ratios[j]
+                
+                total_hspace = np.sum(hspace[:i])
+                total_heights = np.sum(height_ratios[:i+1])
+                total_widths = np.sum(width_ratios[:j])
+                total_wspace = np.sum(wspace[:j])
+                
+                bot = figheight - yborder[0] - total_hspace - total_heights
+                left = xborder[0] + total_widths + total_wspace
+                
+                axdim = [left / figwidth, bot / figheight, 
+                        width / figwidth, height / figheight]
+                ax.set_position(axdim)
+                axes[i, j] = ax
+        
+        self.axes = axes
+        return
+    
+    def gspecArgs(self, gspec_kwargs = {}, **other_kwargs):
+            
+        gspec_kwargs.update(other_kwargs)
+        self.gspec_args.update(gspec_kwargs)
+        
+        ga = self.gspec_args
+        nrows, ncols = self.dim
+        height_ratios = ga['height_ratios']
+        width_ratios = ga['width_ratios']
+        yborder = ga['yborder']; xborder = ga['xborder']
+        hspace = ga['hspace']; wspace = ga['wspace']
+        
         # default behavior for borders
         if isinstance(xborder, float) or isinstance(xborder, int):
             xborder = np.array([xborder, xborder])
@@ -112,15 +171,33 @@ class Figrid():
             #renormalize
             maxval = np.max(width_ratios)
             width_ratios /= maxval
+        
+        self.gspec_args.update({
+            'wspace':wspace,
+            'hspace':hspace,
+            'xborder':xborder,
+            'yborder':yborder,
+            'height_ratios':height_ratios,
+            'width_ratios':width_ratios
+        })
+        return
+    
+    def setPanelsize(self, panel_width, panel_height):
+        self.panelsize = [panel_width, panel_height]
+        return
+    
+    def calculateFigsize(self):
+        ga = self.gspec_args
+        hrs = ga['height_ratios']
+        wrs = ga['width_ratios']
+        yb = ga['yborder']; xb = ga['xborder']
+        hs = ga['hspace']; ws = ga['wspace']
 
-        #TODO handle input errors with panelbt, height/width ratios
-
-        # creating Figure object
-
-        # convert everything into units of inches
-        width_ratios *= panel_length; height_ratios *= panel_length
-        xborder *= panel_length; yborder *= panel_length
-        wspace *= panel_length; hspace *= panel_length
+        panel_width = self.panelsize[0]
+        panel_height = self.panelsize[1]
+        width_ratios = wrs * panel_width; height_ratios = hrs * panel_height
+        xborder = xb * panel_width; yborder = yb * panel_height
+        wspace = ws * panel_width; hspace = hs * panel_height
         
         total_widths = np.sum(width_ratios)
         total_wspace = np.sum(wspace)
@@ -132,53 +209,35 @@ class Figrid():
         
         # get figwidth and figheight in inches
         figwidth = total_widths + total_wspace + wborder_space
-        figheight = total_heights + total_hspace + hborder_space 
+        figheight = total_heights + total_hspace + hborder_space
 
-        fig_kwargs['figsize'] = (figwidth, figheight)
-        fig = plt.figure(**fig_kwargs)
-                
-        axes = np.empty((nrows, ncols), dtype = object)
-        for i in range(nrows):
-            for j in range(ncols):
-                # a label makes each axis unique - otherwise mpl will
-                # return a previously made axis
-                
-                ax = fig.add_subplot(label = str((i, j)))
-                
-                height = height_ratios[i]
-                width = width_ratios[j]
-                
-                total_hspace = np.sum(hspace[:i])
-                total_heights = np.sum(height_ratios[:i+1])
-                total_widths = np.sum(width_ratios[:j])
-                total_wspace = np.sum(wspace[:j])
-                
-                bot = figheight - yborder[0] - total_hspace - total_heights
-                left = xborder[0] + total_widths + total_wspace
-                
+        return [figwidth, figheight]
+        
 
-                axdim = [left / figwidth, bot / figheight, 
-                        width / figwidth, height / figheight]
-                ax.set_position(axdim)
-                axes[i, j] = ax
-                
+    def figArgs(self, fig_kwargs = {}, **other_kwargs):
+        fig_kwargs.update(other_kwargs)
+        self.fig_args.update(fig_kwargs)
+        return
+    
+    def setFig(self, fig):
         self.fig = fig
-        self.axes = axes
-        self.xborder = xborder
-        self.yborder = yborder
-        self.wspace = wspace 
-        self.hspace = hspace
-        self.figsize = [figwidth, figheight]
-        self.panel_length = panel_length
-        self.panel_heights = height_ratios
-        self.panel_widths = width_ratios
-        self.dim = [nrows, ncols]
-        return fig
+        return
+
+    def _applyFigArgs(self):
+        
+        self.fig.set(**self.fig_args)
+        return
+    
+    def _makeFig(self):
+        figsize = self.calculateFigsize()
+        self.fig = plt.figure(figsize = figsize)
+        return
     
     ##### INTERFACING WITH DATA CONTAINERS ##########################
 
     def plotArgs(self, attrs, plot_kwargs = {}, slc = None, 
             **other_kwargs):
+        plot_kwargs = copy.deepcopy(plot_kwargs)
         slc = self._getSlice(slc)
         plot_kwargs.update(other_kwargs)
         # so you can specify with just string
@@ -229,67 +288,129 @@ class Figrid():
         elif isinstance(slc, tuple):
             return slc
         
+        elif isinstance(slc, str):
+            mask = np.zeros(self.dim, dtype = bool)
+            s = slc
+            if s in self.row_values:
+                for rl in range(len(self.row_values)):
+                    if s == self.row_values[rl]:
+                        mask[rl, :] = True
+            if s in self.col_values:
+                for cl in range(len(self.col_values)):
+                    if s == self.col_values[cl]:
+                        mask[:, cl] = True
+            return mask
+        
         return slc # assume user knows what they're doing
                 
                 
     def tickArgs(self, xory = 'both', which = 'both', tick_kwargs = {},
             slc = None, **other_kwargs):
-
+        tick_kwargs = copy.deepcopy(tick_kwargs)
         slc = self._getSlice(slc)
         tick_kwargs.update(other_kwargs)
 
-        def _panelTicks(axis):
-            axis.tick_params(axis = xory, which = which, **tick_kwargs)
+        def _panelTicks(tick_args_panel):
+            tick_args_panel[xory][which].update(tick_kwargs)
             return
         
         ticknp = np.vectorize(_panelTicks, cache = True, otypes = [object])
-        ticknp(self.axes[slc])
+        ticknp(self.tick_args[slc])
         return
 
-    def spineArgs(self, which = 'all', spine_kwargs = {}, slc = None):
+    def _applyTickArgs(self):
+        nr, nc = self.dim
+        for i in range(nr):
+            for j in range(nc):
+                ax = self.axes[i, j]
+                targs = self.tick_args[i, j]
+                for xory in targs:
+                    for which in targs[xory]:
+                        ax.tick_params(axis = xory, which = which,
+                                **targs[xory][which])
+        return
+
+    def spineArgs(self, which = 'all', spine_kwargs = {}, slc = None,
+            **other_kwargs):
+        spine_kwargs = copy.deepcopy(spine_kwargs)
+        spine_kwargs.update(other_kwargs)
         slc = self._getSlice(slc)
 
-        def _setSpine(axis):
+        def _setSpine(spine_args_panel):
             if which == 'all':
                 spines = ['bottom', 'top', 'right', 'left']
                 for s in spines:
-                    axis.spines[s].set(**spine_kwargs)
+                    spine_args_panel[s].update
             else:
-                axis.spines[which].set(**spine_kwargs)
+                spine_args_panel[which].update(spine_kwargs)
 
         spinenp = np.vectorize(_setSpine, cache=True, otypes=[object])
-        spinenp(self.axes[slc])
+        spinenp(self.spine_args[slc])
         return
 
+    def _applySpineArgs(self):
+        nr, nc = self.dim
+        for i in range(nr):
+            for j in range(nc):
+                ax = self.axes[i, j]
+                for side in self.spine_args[i, j]:
+                    
+                    sargs = self.spine_args[i, j][side]
+                    ax.spines[side].set(**sargs)
+        return
+    
     def plotOrder(self, order = []):
         self.plot_order = order
         return
     
     def axisArgs(self, axis_kwargs = {}, slc = None, **other_kwargs):
+        axis_kwargs = copy.deepcopy(axis_kwargs)
         slc = self._getSlice(slc)
         axis_kwargs.update(other_kwargs)
-        def _panelAxis(axis):
-            axis.set(**axis_kwargs)
+        def _panelAxis(axis_args_panel):
+            axis_args_panel.update(axis_kwargs)
             return
 
         axisnp = np.vectorize(_panelAxis, cache = True, otypes = [object])
-        axisnp(self.axes[slc])
+        axisnp(self.axis_args[slc])
         return
 
-    def figArgs(self, fig_kwargs = {}, **other_kwargs):
-        fig_kwargs.update(other_kwargs)
-        self.fig.set(**fig_kwargs)
+    def _applyAxisArgs(self):
+        nr, nc = self.dim
+        for i in range(nr):
+            for j in range(nc):
+                self.axes[i, j].set(**self.axis_args[i, j])
         return
     
-    def legendArgs(self, leg_kwargs = {}, slc = None, 
-            **other_kwargs):
+    def legendArgs(self, leg_kwargs = {}, slc = -np.inf, 
+            rm_legend = False, **other_kwargs):
+        leg_kwargs = copy.deepcopy(leg_kwargs)
         leg_kwargs.update(other_kwargs)
-        self.legend_params.update(leg_kwargs)
-        self.legend_slc = slc
+        self.leg_args.update(leg_kwargs)
+        self.rm_legend = rm_legend
+        if not slc == -np.inf:
+            self.legend_slc = slc
         return
 
+    def setLegend(self, kwargs = {}, **other_kwargs):
+        if not self.is_plotted:
+            msg = "Not plotted, so no legend to give arguments to."
+            raise ValueError(msg)
+        
+        kwargs = copy.deepcopy(kwargs)
+        kwargs.update(other_kwargs)
+
+        def _panelLegend(axis):
+            leg = axis.get_legend()
+            leg.set(**kwargs)
+            return
+        
+        legnp = np.vectorize(_panelLegend, cache = True, otypes = [object])
+        legnp(self.axes[self.legend_slc])
+        return
+    
     def _makeLegend(self):
-        legendParams = self.legend_params
+        legendParams = self.leg_args
         slc = self.legend_slc
         slc = self._getSlice(slc)
 
@@ -331,92 +452,98 @@ class Figrid():
         return
     
     def _makeRowLabels(self):
-        rowlabels = self.row_labels
+        rowlabels = self.row_label_text
         
         if rowlabels:
-            pos, textKwargs, colidx = self.row_label_args
+            pos = self.row_label_pos
+            colidx = self.row_label_col
+            text_kwargs = self.row_label_args
             for i in range(self.dim[0]):
                 p = self.axes[i, colidx]
                 p.text(pos[0], pos[1], rowlabels[i],
-                        transform = p.transAxes, **textKwargs)
+                        transform = p.transAxes, **text_kwargs)
         return
 
-    def rowLabelArgs(self, rowlabels = [], pos = [], text_kwargs = {},
-            colidx = 0, **other_kwargs):
-        text_kwargs.update(other_kwargs)
+    def rowLabels(self, rowlabels = [], pos = [], colidx = None):
         if rowlabels:
-            self.row_labels = rowlabels
+            self.row_label_text = rowlabels
         
-        if self.row_label_args:
-            if not pos:
-                pos = self.row_label_args[0]
-            
-            temp = self.row_label_args[1]
-            temp.update(text_kwargs)
-            text_kwargs = temp
-            if colidx is None:
-                colidx = self.row_label_args[2]
+        if pos:
+            self.row_label_pos = pos
         
-        if not pos:
-            pos = [0.5, 0.9]
-        
-        if colidx is None:
-            colidx = 0
-        self.row_label_args = (pos, text_kwargs, colidx)
+        if not colidx is None:
+            self.row_label_col = colidx
+
+        return
+
+    def rowLabelArgs(self, text_kwargs = {}, **other_kwargs):
+        text_kwargs = copy.deepcopy(text_kwargs)
+        text_kwargs.update(other_kwargs)
+        self.row_label_args.update(text_kwargs)
         return
     
     def _makeColLabels(self):
         
-        collabels = self.col_labels
+        collabels = self.col_label_text
         
         if collabels:
-            pos, textKwargs, rowidx = self.col_label_args
+            text_kwargs = self.col_label_args
+            rowidx = self.col_label_row
+            pos = self.col_label_pos
             for i in range(self.dim[1]):
                 p = self.axes[rowidx, i]
                 p.text(pos[0], pos[1], collabels[i],
-                        transform = p.transAxes, **textKwargs)
+                        transform = p.transAxes, **text_kwargs)
         return
     
-    def colLabelArgs(self, collabels = [], pos = [], text_kwargs = {},
-            rowidx = None, **other_kwargs):
-        text_kwargs.update(other_kwargs)
+    def colLabels(self, collabels = [], pos = [], rowidx = None):
         if collabels:
-            self.col_labels = collabels
+            self.col_label_text = collabels
         
-        if self.col_label_args:
-            if not pos:
-                pos = self.col_label_args[0]
-            
-            temp = self.col_label_args[1]
-            temp.update(text_kwargs)
-            text_kwargs = temp
-            
-            if rowidx is None:
-                rowidx = self.col_label_args[2]
+        if pos:
+            self.col_label_pos = pos
         
-        if not pos:
-            pos = [0.5, 0.9]
+        if not rowidx is None:
+            self.col_label_row = rowidx
         
-        if rowidx is None:
-            rowidx = 0
-        self.col_label_args = (pos, text_kwargs, rowidx)
+        return
+
+    def colLabelArgs(self, text_kwargs = {}, **other_kwargs):
+        text_kwargs = copy.deepcopy(text_kwargs)
+        text_kwargs.update(other_kwargs)
+        self.col_label_args.update(text_kwargs)
         return
     
-    def annotateAxis(self, text, pos, idx, text_kwargs = {}, 
+    def annotatePanel(self, text, pos, idx, text_kwargs = {}, 
             **other_kwargs):
+        text_kwargs = copy.deepcopy(text_kwargs)
         text_kwargs.update(other_kwargs)
-        ax = self.axes[idx]
-        ax.text(pos[0], pos[1], text, 
-                transform = ax.transAxes, **text_kwargs)
+
+        self.panel_annotations.append((text, pos, idx, text_kwargs))
         return
+    
     ##### INTERFACE WITH THE FIGURE #################################
 
     def annotateFig(self, text, pos, text_kwargs = {}, 
             **other_kwargs):
+        text_kwargs = copy.deepcopy(text_kwargs)
         text_kwargs.update(other_kwargs)
-        self.fig.text(pos[0], pos[1], text, **text_kwargs)
+        self.fig_annotations.append((text, pos, text_kwargs))
         return
 
+    def _makeAnnotations(self):
+        for pa in self.panel_annotations:
+            text = pa[0]; pos = pa[1]
+            idx = pa[2]; text_kwargs = pa[3]
+            ax = self.axes[idx]
+            ax.text(pos[0], pos[1], text, 
+                    transform = ax.transAxes, **text_kwargs)
+        
+        for fa in self.fig_annotations:
+            text = fa[0]; pos = fa[1]
+            text_kwargs = fa[2]
+            self.fig.text(pos[0], pos[1], text, **text_kwargs)
+        return
     ############ PLOTTING ROUTINES ##################################
     
     def plotPanel(self, rowidx, colidx):
@@ -440,14 +567,37 @@ class Figrid():
                 dc.plot(self.axes[idx])
         return
 
-    def plot(self):
+    def plot(self, subfig = None, axes = None):
+        
+        if subfig is None:
+            if self.fig is None:
+                self._makeFig()
+            self._applyFigArgs()
+        else:
+            self.setFig(subfig)
+        
+        if axes is None:
+            self._makeAxes()
+        else:
+            self.axes = axes
+        self._applyAxisArgs()
+        self._applySpineArgs()
+        self._applyTickArgs()
+
         for i in range(self.dim[0]):
             for j in range(self.dim[1]):
                 self.plotPanel(i, j)
         
-        self._makeLegend()
+        if not self.rm_legend:
+            self._makeLegend()
+        
         self._makeColLabels()
         self._makeRowLabels()
+        self._makeXLabel()
+        self._makeYLabel()
+        self._makeAnnotations()
+        self._makeAltPlots()
+        self.is_plotted = True
         return
 
     def setFunc(self, attrs, func, slc = None):
@@ -554,41 +704,63 @@ class Figrid():
         return
 
     ##### CONVENIENCE METHODS #######################################
-    def axisLabelArgs(self, text_kwargs, **other_kwargs):
+    def axisLabelArgs(self, xory, text_kwargs = {}, **other_kwargs):
+        text_kwargs = copy.deepcopy(text_kwargs)
         text_kwargs.update(other_kwargs)
-        self.axis_label_args.update(text_kwargs)
+        self.axis_label_args[xory].update(text_kwargs)
         return
     
-    def setXLabel(self, text, pos = [], text_kwargs = {},
-            **other_kwargs):
-        text_kwargs.update(other_kwargs)
-        if not pos:
-            fl = self.figsize[0]
-            xb = self.xborder
+    def setXLabel(self, text = '', pos = []):
+        self.axis_label_pos['x'] = pos
+        self.axis_label_text['x'] = text
+        return
+    
+    def defaultAxLabelPos(self, xory):
+        if xory == 'x':
+            fl = self.calculateFigsize()[0]
+            xb = self.gspec_args['xborder'] * self.panelsize[0]
             pos = [(0.5 * (fl - np.sum(xb)) + xb[0]) / fl, 0]
+        elif xory == 'y':
+            fh = self.calculateFigsize()[1]
+            yb = self.gspec_args['yborder'] * self.panelsize
+            pos = [0, (0.5 * (fh - np.sum(yb)) + yb[1])/fh]
+        
+        return pos
+
+    def _makeXLabel(self):
+
         default_args = {'ha':'center', 'va':'bottom'}
         default_args.update(self.axis_label_args['both'])
         default_args.update(self.axis_label_args['x'])
-        default_args.update(text_kwargs)
+
+        pos = self.axis_label_pos['x']
+        if not pos:
+            pos = self.defaultAxLabelPos('x')
+        
+        text = self.axis_label_text['x']
         self.annotateFig(text, pos, default_args)
         return
     
-    def setYLabel(self, text, pos = [], text_kwargs = {},
-            **other_kwargs):
-        text_kwargs.update(other_kwargs)
-        if not pos:
-            fh = self.figsize[1]
-            yb = self.yborder
-            pos = [0, (0.5 * (fh - np.sum(yb)) + yb[1])/fh]
-        
+    def setYLabel(self, text = '', pos = []):
+        self.axis_label_pos['y'] = pos
+        self.axis_label_text['y'] = text
+        return
+
+    def _makeYLabel(self):
         default_args = {'ha':'left', 'va':'center', 
                 'rotation':'vertical'}
         default_args.update(self.axis_label_args['both'])
         default_args.update(self.axis_label_args['y'])
-        default_args.update(text_kwargs)
+
+        pos = self.axis_label_pos['y']
+        if not pos:
+            pos = self.defaultAxLabelPos('y')
+        
+        text = self.axis_label_text['y']
+        
         self.annotateFig(text, pos, default_args)
         return
-
+    
     def setDefaultTicksParams(self):
         # slice of everything but bottom row
         topslc = (slice(0, -1), slice(None))
@@ -598,11 +770,11 @@ class Figrid():
         
         if self.dim[0] > 1:
             params = {'labelbottom':False}
-            self.tickArgs(params, 'x', slc = topslc)
+            self.tickArgs('x', tick_kwargs = params, slc = topslc)
         
         if self.dim[1] > 1:
             params = {'labelleft':False}
-            self.tickArgs(params, 'y', slc = rightslc)
+            self.tickArgs('y', tick_kwargs = params, slc = rightslc)
         return
     
     def matchDefaultLimits(self):
@@ -676,16 +848,30 @@ class Figrid():
     
         return
 
+    def _makeAltPlots(self):
+
+        for op in self.other_plots:
+            if op[0] == 'plot_ones':
+                slc = op[1]
+                plot_kwargs = op[2]
+            
+                def _plotOnes(ax):
+                    ax.plot(ax.get_xlim(), [1, 1], **plot_kwargs)
+                    return
+                
+                np_ones = np.vectorize(_plotOnes, cache = True, 
+                            otypes = [object])
+                np_ones(self.axes)
+        
+        return
     def plotOnes(self, plot_kwargs = {'color':'gray', 'linestyle':'--'},
-            **other_kwargs):
+            slc = None, **other_kwargs):
         
+        plot_kwargs = copy.deepcopy(plot_kwargs)
         plot_kwargs.update(other_kwargs)
-        # add ability to make slices
-        for i in range(self.dim[0]):
-            for j in range(self.dim[1]):
-                ax = self.axes[i, j]
-                ax.plot(ax.get_xlim(), [1,1], **plot_kwargs)
-        
+        slc = self._getSlice(slc)
+
+        self.other_plots.append(('plot_ones', slc, plot_kwargs))
         return
 
     def clf(self):

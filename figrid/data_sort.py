@@ -4,7 +4,6 @@ import copy
 import h5py as hp
 import numpy as np
 
-
 class DataSort():
     def __init__(self, dclist = []):
         self.dclist = dclist
@@ -20,6 +19,8 @@ class DataSort():
         self.fig_args = {}
         self.display_names = {}
         self.axis_label_args = {}
+        self.axis_label_text = {}
+        self.axis_label_pos = {}
         self.row_label_args = {}
         self.col_label_args = {}
         return
@@ -267,6 +268,16 @@ class DataSort():
         self.gspec_args.update(gspec_kwargs)
         return
     
+    def setYLabel(self, text = '', pos = []):
+        self.axis_label_pos['y'] = pos
+        self.axis_label_text['y'] = text
+        return
+
+    def setXLabel(self, text = '', pos = []):
+        self.axis_label_pos['x'] = pos
+        self.axis_label_text['x'] = text
+        return
+
     def spineArgs(self, which = 'all', spine_kwargs = {},
             **other_kwargs):
         spine_kwargs.update(other_kwargs)
@@ -516,13 +527,14 @@ class DataSort():
         figrid = Figrid(panels, panel_attr, row_values, col_values)
         fa = copy.deepcopy(self.fig_args)
         fa.update(fig_kwargs)
-        fgargs = copy.deepcopy(self.gspec_args)
-        fgargs.update(gspec_kwargs)
-        fgargs['figkw'] = fa
-        figrid.makeFig(nrows, ncols, **fgargs)
+        figrid.figArgs(fa)
+        ga = copy.deepcopy(self.gspec_args)
+        ga.update(gspec_kwargs)
+        figrid.gspecArgs(ga)
+
         for xory in self.tick_args:
             for which in self.tick_args[xory]:
-                figrid.tickArgs(self.tick_args[xory][which], xory, which)
+                figrid.tickArgs(xory, which, self.tick_args[xory][which])
 
         pa = self.axis_args['panel']
         ra = self.axis_args['row']
@@ -550,141 +562,218 @@ class DataSort():
         if panel_attr in self.attr_orders:
             figrid.plotOrder(self.attr_orders[panel_attr])
         
-        figrid.axisLabelArgs(self.axis_label_args)
-                    
+        for xory in self.axis_label_args:
+            figrid.axisLabelArgs(xory, self.axis_label_args[xory])
+
+        # TODO: using temporary fix for row label args
+        # if user wants specific arguments for this row attr, use those            
         if row_attr in self.row_label_args:
-            figrid.rowLabelArgs(row_labels, 
-                    *self.row_label_args[row_attr])
-        elif '_default_' in self.row_label_args:
-            figrid.rowLabelArgs(row_labels, 
-                    *self.row_label_args['_default_'])
+            rla = self.row_label_args[row_attr]
+            figrid.rowLabels(row_labels, rla[0], rla[2])
+            figrid.rowLabelArgs(**rla[1])
+        # if not present, use default settings. If string is empty, assume no label
+        # is needed
+        elif '_default_' in self.row_label_args and not row_attr == '':
+            rla = self.row_label_args['_default_']
+            figrid.rowLabels(row_labels, rla[0], rla[2])
+            figrid.rowLabelArgs(**rla[1])
         
         if col_attr in self.col_label_args:
-            figrid.colLabelArgs(col_labels, *self.col_label_args[col_attr])
-        elif '_default_' in self.col_label_args:
-            figrid.colLabelArgs(col_labels, *self.col_label_args['_default_'])
-        
+            cla = self.col_label_args[col_attr]
+            figrid.colLabels(col_labels, cla[0], cla[2])
+            figrid.colLabelArgs(**cla[1])
+        elif '_default_' in self.col_label_args and not col_attr == '':
+            cla = self.col_label_args['_default_']
+            figrid.colLabels(col_labels, cla[0], cla[2])
+            figrid.colLabelArgs(**cla[1])
         return figrid
+
+
+    def combine(self, figrid_arr, wspace = 0, hspace = 0):
+        import matplotlib.pyplot as plt
+        figrid_arr = np.array(figrid_arr)
+        if len(figrid_arr.shape) == 1:
+            figrid_arr = np.reshape(figrid_arr, (1, -1))
+        
+        
+        nrows = figrid_arr.shape[0]
+        ncols = figrid_arr.shape[1]
+        # total figsize
+        figwidths = np.zeros((nrows, ncols))
+        figheights = np.zeros((nrows, ncols))
+        for i in range(nrows):
+            for j in range(ncols):
+                figwidths[i, j], figheights[i, j] = \
+                    figrid_arr[i, j].calculateFigsize()
+
+        figsize = np.zeros(2)
+        figsize[0] = np.max(np.sum(figwidths, axis = 1))
+        figsize[1] = np.max(np.sum(figheights, axis = 0))
+
+
+        figsize[0] += wspace * (ncols - 1)
+        figsize[1] += hspace * (nrows - 1)
+        
+
+        # get width/height ratios
+        width_ratios = figwidths[0, :] / np.max(figwidths[0, :])
+        height_ratios = figheights[:, 0] / np.max(figheights[:, 0])
+        # TODO make more general way of obtaining the ratios
+        # TODO wspace not working, is just changing figsize and nothing else
+        fig = plt.figure(figsize = figsize)
+        subfigs = fig.subfigures(nrows, ncols, 
+                wspace = wspace * (ncols - 1),
+                hspace = hspace * (nrows - 1),
+                width_ratios = width_ratios,
+                height_ratios = height_ratios)
+        subfigs = np.reshape(subfigs, (nrows, ncols))
+        for i in range(nrows):
+            for j in range(ncols):
+                sf = subfigs[i, j]
+                fg = figrid_arr[i, j]
+                fg.plot(sf)
+        
+        return fig
     
-     
-    def combineFigrids(self, fg_init, fg_add, loc = 'bottom', spacing = None):
-        nrows = fg_init.dim[0]
-        ncols = fg_init.dim[1]
-        hspace = fg_init.hspace / fg_init.panel_length
-        wspace = fg_init.wspace / fg_init.panel_length
+    # def combineFigrids(self, fg_init, fg_add, loc = 'bottom', spacing = None):
+    #     nrows = fg_init.dim[0]
+    #     ncols = fg_init.dim[1]
+    #     hspace = fg_init.hspace / fg_init.panel_length
+    #     wspace = fg_init.wspace / fg_init.panel_length
 
-        if len(hspace) == 0 and len(fg_add.hspace) == 0 and spacing is None:
-            raise ValueError("for two figrids of length 1 must" + \
-                " define a spacing.")
+    #     if len(hspace) == 0 and len(fg_add.hspace) == 0 and spacing is None:
+    #         raise ValueError("for two figrids of length 1 must" + \
+    #             " define a spacing.")
 
-        if loc == 'bottom':
-            nrows += fg_add.dim[0]
-            newslc = (slice(fg_init.dim[0], None), slice(None))
-            initslc = (slice(0, fg_init.dim[0]), slice(None))
+    #     if loc == 'bottom':
+    #         nrows += fg_add.dim[0]
+    #         newslc = (slice(fg_init.dim[0], None), slice(None))
+    #         initslc = (slice(0, fg_init.dim[0]), slice(None))
 
-            fg_init.row_labels.extend(fg_add.row_labels)
-            fg_init.row_values.extend(fg_add.row_values)
+    #         fg_init.row_labels.extend(fg_add.row_labels)
+    #         fg_init.row_values.extend(fg_add.row_values)
             
-            new_hspace = np.zeros(nrows - 1)
-            transidx = len(hspace)
-            new_hspace[:transidx] = hspace[:]
-            if not spacing is None:
-                new_hspace[transidx] = spacing
-            else:
-                new_hspace[transidx] = hspace[-1]
-            if len(new_hspace) > transidx + 1:
-                new_hspace[transidx+1:] = fg_add.hspace[:]
-            new_wspace = wspace
-        elif loc == 'top':
-            nrows += fg_add.dim[0]
-            newslc = (slice(0, fg_add.dim[0]), slice(None))
-            initslc = (slice(fg_add.dim[0], None), slice(None))
+    #         new_hspace = np.zeros(nrows - 1)
+    #         transidx = len(hspace)
+    #         new_hspace[:transidx] = hspace[:]
+    #         if not spacing is None:
+    #             new_hspace[transidx] = spacing
+    #         else:
+    #             new_hspace[transidx] = hspace[-1]
+    #         if len(new_hspace) > transidx + 1:
+    #             new_hspace[transidx+1:] = fg_add.hspace[:]
+    #         new_wspace = wspace
+    #     elif loc == 'top':
+    #         nrows += fg_add.dim[0]
+    #         newslc = (slice(0, fg_add.dim[0]), slice(None))
+    #         initslc = (slice(fg_add.dim[0], None), slice(None))
 
-            fg_init.row_labels = fg_add.row_labels.extend(fg_init.row_labels)
-            fg_init.row_values = fg_add.row_values.extend(fg_init.row_values)
+    #         fg_init.row_labels = fg_add.row_labels.extend(fg_init.row_labels)
+    #         fg_init.row_values = fg_add.row_values.extend(fg_init.row_values)
 
-            new_hspace = np.zeros(nrows - 1)
-            transidx = len(fg_add.hspace)
-            new_hspace[transidx:] = hspace[:]
-            if not spacing is None:
-                new_hspace[transidx] = spacing
-            else:
-                new_hspace[transidx] = hspace[0]
-            if transidx - 1 >= 0:
-                new_hspace[:transidx - 1] = fg_add.hspace[:]
-            new_wspace = wspace
-        elif loc == 'right':
-            ncols += fg_add.dim[1]
-            newslc = (slice(None), slice(fg_init.dim[1], None))
-            initslc = (slice(None), slice(0, fg_init.dim[1]))
+    #         new_hspace = np.zeros(nrows - 1)
+    #         transidx = len(fg_add.hspace)
+    #         new_hspace[transidx:] = hspace[:]
+    #         if not spacing is None:
+    #             new_hspace[transidx] = spacing
+    #         else:
+    #             new_hspace[transidx] = hspace[0]
+    #         if transidx - 1 >= 0:
+    #             new_hspace[:transidx - 1] = fg_add.hspace[:]
+    #         new_wspace = wspace
+    #     elif loc == 'right':
+    #         ncols += fg_add.dim[1]
+    #         newslc = (slice(None), slice(fg_init.dim[1], None))
+    #         initslc = (slice(None), slice(0, fg_init.dim[1]))
 
-            fg_init.col_labels.extend(fg_add.col_labels)
-            fg_init.col_values.extend(fg_add.col_values)
+    #         fg_init.col_labels.extend(fg_add.col_labels)
+    #         fg_init.col_values.extend(fg_add.col_values)
             
-            new_wspace = np.zeros(ncols - 1)
-            transidx = len(wspace)
-            new_wspace[:transidx] = wspace[:]
-            if not spacing is None:
-                new_wspace[transidx] = spacing
-            else:
-                new_wspace[transidx] = wspace[-1]
-            if len(new_wspace) > transidx + 1:
-                new_wspace[transidx+1:] = fg_add.wspace[:]
-            new_hspace = hspace
-        elif loc == 'left':
-            ncols += fg_add.dim[1]
-            newslc = (slice(None), slice(0, fg_add.dim[1]))
-            initslc = (slice(None), slice(fg_add.dim[1], None))
+    #         new_wspace = np.zeros(ncols - 1)
+    #         transidx = len(wspace)
+    #         new_wspace[:transidx] = wspace[:]
+    #         if not spacing is None:
+    #             new_wspace[transidx] = spacing
+    #         else:
+    #             new_wspace[transidx] = wspace[-1]
+    #         if len(new_wspace) > transidx + 1:
+    #             new_wspace[transidx+1:] = fg_add.wspace[:]
+    #         new_hspace = hspace
+    #     elif loc == 'left':
+    #         ncols += fg_add.dim[1]
+    #         newslc = (slice(None), slice(0, fg_add.dim[1]))
+    #         initslc = (slice(None), slice(fg_add.dim[1], None))
 
-            fg_init.col_labels = fg_add.col_labels.extend(fg_init.col_labels)
-            fg_init.col_values = fg_add.col_values.extend(fg_init.col_values)
+    #         fg_init.col_labels = fg_add.col_labels.extend(fg_init.col_labels)
+    #         fg_init.col_values = fg_add.col_values.extend(fg_init.col_values)
 
-            new_wspace = np.zeros(ncols - 1)
-            transidx = len(fg_add.wspace)
-            new_wspace[transidx:] = wspace[:]
-            if not spacing is None:
-                new_wspace[transidx] = spacing
-            else:
-                new_wspace[transidx] = wspace[0]
-            if transidx - 1 >= 0:
-                new_wspace[:transidx - 1] = fg_add.wspace[:]
-            new_hspace = hspace
-        else:
-            raise ValueError('not accepted location')
-        heights = np.zeros(nrows)
-        widths = np.zeros(ncols)
-        heights[initslc[0]] = fg_init.panel_heights
-        widths[initslc[1]] = fg_init.panel_widths
+    #         new_wspace = np.zeros(ncols - 1)
+    #         transidx = len(fg_add.wspace)
+    #         new_wspace[transidx:] = wspace[:]
+    #         if not spacing is None:
+    #             new_wspace[transidx] = spacing
+    #         else:
+    #             new_wspace[transidx] = wspace[0]
+    #         if transidx - 1 >= 0:
+    #             new_wspace[:transidx - 1] = fg_add.wspace[:]
+    #         new_hspace = hspace
+    #     else:
+    #         raise ValueError('not accepted location')
+
+
+    #     heights = np.zeros(nrows)
+    #     widths = np.zeros(ncols)
+    #     heights[initslc[0]] = fg_init.panel_heights
+    #     widths[initslc[1]] = fg_init.panel_widths
         
-        if loc == 'bottom' or loc == 'top':
-            heights[newslc[0]] = fg_add.panel_heights
-        elif loc == 'left' or loc == 'right':
-            widths[newslc[1]] = fg_add.panel_widths
+    #     if loc == 'bottom' or loc == 'top':
+    #         heights[newslc[0]] = fg_add.panel_heights
+    #     elif loc == 'left' or loc == 'right':
+    #         widths[newslc[1]] = fg_add.panel_widths
         
-        # pl = max(np.max(heights), np.max(widths))
-        fgargs = copy.deepcopy(self.gspec_args)
-        fgargs['height_ratios'] = heights
-        fgargs['width_ratios'] = widths
-        fgargs['wspace'] = new_wspace
-        fgargs['hspace'] = new_hspace
-        fg_init.makeFig(nrows, ncols, **fgargs)
-        for xory in self.tick_args:
-            for which in self.tick_args[xory]:
-                fg_init.tickArgs(self.tick_args[xory][which], xory, which)
+    #     # make the figure
+    #     fgargs = copy.deepcopy(self.gspec_args)
+    #     fgargs['height_ratios'] = heights
+    #     fgargs['width_ratios'] = widths
+    #     fgargs['wspace'] = new_wspace
+    #     fgargs['hspace'] = new_hspace
+    #     fg_init.makeFig(nrows, ncols, **fgargs)
+    #     for xory in self.tick_args:
+    #         for which in self.tick_args[xory]:
+    #             fg_init.tickArgs(xory, which, self.tick_args[xory][which])
 
-        fg_init.axisArgs(self.axis_args)
-        fg_init.legendArgs(self.legend_args, self.legend_slice)
+    #     # update the axes arguments
+    #     col_attr = fg_init
+    #     pa = self.axis_args['panel']
+    #     ra = self.axis_args['row']
+    #     ca = self.axis_args['col']
+    #     if col_attr in ca:
+    #         figrid.axisArgs(ca[col_attr])
+    #     elif '_default_' in ca:
+    #         figrid.axisArgs(ca['_default_'])
+        
+    #     if row_attr in ra:
+    #         figrid.axisArgs(ra[row_attr])
+    #     elif '_default_' in ca:
+    #         figrid.axisArgs(ra['_default_'])
 
-        if 'x' in self.axis_label_args:
-            fg_init.setXLabel(*self.axis_label_args['x'])
-        if 'y' in self.axis_label_args:
-            fg_init.setYLabel(*self.axis_label_args['y'])
+    #     if panel_attr in pa:
+    #         figrid.axisArgs(pa[panel_attr])
+    #     elif '_default_' in pa:
+    #         figrid.axisArgs(pa['_default_'])
+        
+    #     fg_init.legendArgs(self.legend_args, self.legend_slice)
+
+    #     if 'x' in self.axis_label_args:
+    #         fg_init.setXLabel(*self.axis_label_args['x'])
+    #     if 'y' in self.axis_label_args:
+    #         fg_init.setYLabel(*self.axis_label_args['y'])
                     
-        fg_init.rowLabelArgs(fg_init.row_labels, *fg_init.row_label_args)
-        fg_init.colLabelArgs(fg_init.col_labels, *fg_init.col_label_args)
+    #     fg_init.rowLabelArgs(fg_init.row_labels, *fg_init.row_label_args)
+    #     fg_init.colLabelArgs(fg_init.col_labels, *fg_init.col_label_args)
 
-        newpanels = np.empty((nrows, ncols), dtype = object)
-        newpanels[initslc] = fg_init.panels.copy()
-        newpanels[newslc] = fg_add.panels.copy()
-        fg_init.panels = newpanels
-        return fg_init
+    #     newpanels = np.empty((nrows, ncols), dtype = object)
+    #     newpanels[initslc] = fg_init.panels.copy()
+    #     newpanels[newslc] = fg_add.panels.copy()
+    #     fg_init.panels = newpanels
+    #     return fg_init
