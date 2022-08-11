@@ -3,6 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from figrid.data_container import DataContainer
 import copy
+import seaborn as sns
 
 class Figrid():
    
@@ -46,6 +47,7 @@ class Figrid():
         self.axis_label_args = {'x':{}, 'y':{}, 'both':{}}
         self.axis_label_pos = {'x':[], 'y':[]}
         self.axis_label_text = {'x':'', 'y':''}
+        self.axis_label_panels = {'x':[slice(0, self.dim[1])], 'y':[slice(0, self.dim[0])]}
 
         self.row_label_args = {'ha':'left', 'va':'bottom'}
         self.col_label_args = {'ha':'center', 'va':'top'}
@@ -255,7 +257,13 @@ class Figrid():
         argnp = np.vectorize(_panelArgs)
         argnp(self.panels[slc])
         return
-        
+    
+    def setCmap(self, cmap, vals, attrs = {}):
+        colors = sns.color_palette(cmap, len(vals))
+        for i in range(len(vals)):
+            attrs.update({self.panel_attr:vals[i]})
+            self.plotArgs(attrs, color = colors[i])
+        return
     ########## INTERFACING WITH PANELS ##############################
 
     def _getSlice(self, slc):
@@ -340,7 +348,7 @@ class Figrid():
             if which == 'all':
                 spines = ['bottom', 'top', 'right', 'left']
                 for s in spines:
-                    spine_args_panel[s].update
+                    spine_args_panel[s].update(spine_kwargs)
             else:
                 spine_args_panel[which].update(spine_kwargs)
 
@@ -656,18 +664,19 @@ class Figrid():
             match_found = False
             for dc in panel:
                 if dc.isMatch(attrs):
-                    match_found = True
-                    if data is None:
+                    if 'no_fill' not in dc.storage:
+                        match_found = True
+                        if data is None:
 
-                        data = dc.getData()
-                        x = data[0]; y = data[1]
-                        ymins = np.ones_like(y) * y
-                        ymaxs = np.ones_like(y) * y
-                    else:
-                        data = dc.getData()
-                        x = data[0]; y = data[1]
-                        ymins = np.minimum(y, ymins)
-                        ymaxs = np.maximum(y, ymaxs)
+                            data = dc.getData()
+                            x = data[0]; y = data[1]
+                            ymins = np.ones_like(y) * y
+                            ymaxs = np.ones_like(y) * y
+                        else:
+                            data = dc.getData()
+                            x = data[0]; y = data[1]
+                            ymins = np.minimum(y, ymins)
+                            ymaxs = np.maximum(y, ymaxs)
                     # TODO need to specify which ones can translate
                     # to fill_between
                     dcargs = dc.getArgs()
@@ -710,21 +719,40 @@ class Figrid():
         self.axis_label_args[xory].update(text_kwargs)
         return
     
-    def setXLabel(self, text = '', pos = []):
+    def setXLabel(self, text = '', pos = [], panels = [], 
+            text_kwargs = {}, **other_kwargs):
+        text_kwargs.update(other_kwargs)
+        if panels:
+            if isinstance(text, list) and not len(text) == len(panels):
+                raise ValueError("length of text list must match panel list")
+            self.axis_label_panels['y'] = panels
+        
         self.axis_label_pos['x'] = pos
         self.axis_label_text['x'] = text
+        self.axis_label_args['x'].update(text_kwargs)
         return
     
-    def defaultAxLabelPos(self, xory):
+    def _defaultAxLabelPos(self, xory, slc):
+        if isinstance(slc, int) or isinstance(slc, float):
+            slc = slice(slc, slc + 1)
         if xory == 'x':
             fl = self.calculateFigsize()[0]
+            pw = self.gspec_args['width_ratios'] * self.panelsize[0]
             xb = self.gspec_args['xborder'] * self.panelsize[0]
-            pos = [(0.5 * (fl - np.sum(xb)) + xb[0]) / fl, 0]
+            bt = self.gspec_args['wspace'] * self.panelsize[0]
+            # pos = [(0.5 * (fl - np.sum(xb)) + xb[0]) / fl, 0]
+            xstart = np.sum(bt[:slc.start]) + \
+                np.sum(pw[:slc.start]) + xb[0]
+            pos = [(0.5 * (np.sum(pw[slc]) + np.sum(bt[slc])) + xstart) / fl, 0]
         elif xory == 'y':
             fh = self.calculateFigsize()[1]
-            yb = self.gspec_args['yborder'] * self.panelsize
-            pos = [0, (0.5 * (fh - np.sum(yb)) + yb[1])/fh]
-        
+            yb = self.gspec_args['yborder'] * self.panelsize[1]
+            ph = self.gspec_args['height_ratios'] * self.panelsize[1]
+            bt = self.gspec_args['hspace'] * self.panelsize[1]
+            # pos = [0, (0.5 * (fh - np.sum(yb)) + yb[1])/fh]
+            ystart = yb[0] + np.sum(bt[:slc.start]) + \
+                np.sum(ph[:slc.start])
+            pos = [0, 1 - (0.5 * (np.sum(ph[slc]) + np.sum(bt[slc])) + ystart) / fh]
         return pos
 
     def _makeXLabel(self):
@@ -733,32 +761,54 @@ class Figrid():
         default_args.update(self.axis_label_args['both'])
         default_args.update(self.axis_label_args['x'])
 
-        pos = self.axis_label_pos['x']
-        if not pos:
-            pos = self.defaultAxLabelPos('x')
-        
-        text = self.axis_label_text['x']
-        self.annotateFig(text, pos, default_args)
+        for i, slc in enumerate(self.axis_label_panels['x']):
+            pos = self.axis_label_pos['x']
+            text = self.axis_label_text['x']
+            if not pos:
+                pos = self._defaultAxLabelPos('x', slc)
+            else:
+                pos = pos[i]
+            if isinstance(text, list):
+                text = text[i]
+            
+            self.annotateFig(text, pos, default_args)
         return
     
-    def setYLabel(self, text = '', pos = []):
-        self.axis_label_pos['y'] = pos
+    def setYLabel(self, text = '', pos = [], panels = [], 
+            text_kwargs = {}, **other_kwargs):
+        
+        text_kwargs.update(other_kwargs)
+        # if panels is given, then only apply label to those panels 
+        
+        if panels:
+            if isinstance(text, list) and not len(text) == len(panels):
+                raise ValueError("length of text list must match panel list")
+
+            self.axis_label_panels['y'] = panels
+        
         self.axis_label_text['y'] = text
+        self.axis_label_pos['y'] = pos
+        self.axis_label_args['y'].update(text_kwargs)
         return
 
     def _makeYLabel(self):
+
         default_args = {'ha':'left', 'va':'center', 
                 'rotation':'vertical'}
         default_args.update(self.axis_label_args['both'])
         default_args.update(self.axis_label_args['y'])
 
-        pos = self.axis_label_pos['y']
-        if not pos:
-            pos = self.defaultAxLabelPos('y')
-        
-        text = self.axis_label_text['y']
-        
-        self.annotateFig(text, pos, default_args)
+        for i, slc in enumerate(self.axis_label_panels['y']):
+            pos = self.axis_label_pos['y']
+            text = self.axis_label_text['y']
+            if not pos:
+                pos = self._defaultAxLabelPos('y', slc)
+            else:
+                pos = pos[i]
+            if isinstance(text, list):
+                text = text[i]
+            
+            self.annotateFig(text, pos, default_args)
         return
     
     def setDefaultTicksParams(self):
@@ -816,17 +866,17 @@ class Figrid():
             self.fill({pa:pv}, fill_kwargs, mask)
         return
     
-    def autoNorm(self, denominator_attr, must_match = [], idx = 1):
+    def autoNorm(self, denom_attr_dict, must_match = [], idx = 1):
         denom_arr = np.empty(self.dim, dtype = object)
         for i in range(self.dim[0]):
             for j in range(self.dim[1]):
                 panel = self.panels[i, j]
                 denom_arr[i, j] = []
                 for dc in panel:
-                    if denominator_attr == dc.get(self.panel_attr):
+                    if dc.isMatch(denom_attr_dict):
                         denom_arr[i, j].append(dc)
-                        dc.setArgs({'visible':False})
-
+                        dc.setArgs({'visible':False, 'label':'_nolegend_'})
+                        dc.store('no_fill', True)
 
 
         for i in range(self.dim[0]):

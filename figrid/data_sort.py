@@ -3,6 +3,7 @@ from figrid.figrid import Figrid
 import copy
 import h5py as hp
 import numpy as np
+import seaborn as sns
 
 class DataSort():
     def __init__(self, dclist = []):
@@ -316,13 +317,32 @@ class DataSort():
         self.attr_orders[attr] = order
         return
     
-    def plotArgs(self, attr, val, plot_kwargs, **other_kwargs):
+    def plotArgs(self, attr, val, plot_kwargs = {}, **other_kwargs):
+        """
+        Change the arguments used in the plot function for an attribute with the given
+        values.
+        """
         plot_kwargs.update(other_kwargs)
         if attr not in self.attr_args:
             self.attr_args[attr] = {}
+
         if val not in self.attr_args[attr]:
             self.attr_args[attr][val] = {}
+            
         self.attr_args[attr][val].update(plot_kwargs)
+            
+        return
+
+    
+    def setCmap(self, attr, cmap, vals = []):
+        if not vals:
+            vals = self.getAttrVals(attr)
+        
+        # if it has an order, use the order
+
+        colors = sns.color_palette(cmap, len(vals))
+        for i in range(len(vals)):
+            self.plotArgs(attr, vals[i], color = colors[i])
         return
 
     def axisLabelArgs(self, xory = 'both', text_kwargs = {},
@@ -553,7 +573,7 @@ class DataSort():
             figrid.axisArgs(pa[panel_attr])
         elif '_default_' in pa:
             figrid.axisArgs(pa['_default_'])
-
+        
         for which in self.spine_args:
             figrid.spineArgs(self.spine_args[which], which)
         
@@ -564,6 +584,19 @@ class DataSort():
         
         for xory in self.axis_label_args:
             figrid.axisLabelArgs(xory, self.axis_label_args[xory])
+
+        for xory in ['x', 'y']:
+            pos = []; text = ''
+            if xory in self.axis_label_pos:
+                pos = self.axis_label_pos[xory]
+            if xory in self.axis_label_text:
+                text = self.axis_label_text[xory]
+
+            if xory == 'x':
+                figrid.setXLabel(text, pos)
+            else:
+                figrid.setYLabel(text, pos)
+            
 
         # TODO: using temporary fix for row label args
         # if user wants specific arguments for this row attr, use those            
