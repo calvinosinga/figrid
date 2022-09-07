@@ -28,12 +28,13 @@ class DataSort():
     
     ##### I/O METHODS ###############################################
 
-    def loadHdf5(self, path):
+    def loadHdf5(self, path, new_props = {}):
         f = hp.File(path, 'r')
         for k in list(f.keys()):
             data = f[k][:]
             dc = DataContainer(data)
             dc.update(f[k].attrs)
+            dc.update(new_props)
             self.dclist.append(dc)
         return
     
@@ -334,7 +335,7 @@ class DataSort():
         return
 
     
-    def setCmap(self, attr, cmap, vals = []):
+    def setColors(self, attr, cmap, vals = []):
         if not vals:
             vals = self.getAttrVals(attr)
         
@@ -621,52 +622,6 @@ class DataSort():
             figrid.colLabelArgs(**cla[1])
         return figrid
 
-
-    def combine(self, figrid_arr, wspace = 0, hspace = 0):
-        import matplotlib.pyplot as plt
-        figrid_arr = np.array(figrid_arr)
-        if len(figrid_arr.shape) == 1:
-            figrid_arr = np.reshape(figrid_arr, (1, -1))
-        
-        
-        nrows = figrid_arr.shape[0]
-        ncols = figrid_arr.shape[1]
-        # total figsize
-        figwidths = np.zeros((nrows, ncols))
-        figheights = np.zeros((nrows, ncols))
-        for i in range(nrows):
-            for j in range(ncols):
-                figwidths[i, j], figheights[i, j] = \
-                    figrid_arr[i, j].calculateFigsize()
-
-        figsize = np.zeros(2)
-        figsize[0] = np.max(np.sum(figwidths, axis = 1))
-        figsize[1] = np.max(np.sum(figheights, axis = 0))
-
-
-        figsize[0] += wspace * (ncols - 1)
-        figsize[1] += hspace * (nrows - 1)
-        
-
-        # get width/height ratios
-        width_ratios = figwidths[0, :] / np.max(figwidths[0, :])
-        height_ratios = figheights[:, 0] / np.max(figheights[:, 0])
-        # TODO make more general way of obtaining the ratios
-        # TODO wspace not working, is just changing figsize and nothing else
-        fig = plt.figure(figsize = figsize)
-        subfigs = fig.subfigures(nrows, ncols, 
-                wspace = wspace * (ncols - 1),
-                hspace = hspace * (nrows - 1),
-                width_ratios = width_ratios,
-                height_ratios = height_ratios)
-        subfigs = np.reshape(subfigs, (nrows, ncols))
-        for i in range(nrows):
-            for j in range(ncols):
-                sf = subfigs[i, j]
-                fg = figrid_arr[i, j]
-                fg.plot(sf)
-        
-        return fig
     
     # def combineFigrids(self, fg_init, fg_add, loc = 'bottom', spacing = None):
     #     nrows = fg_init.dim[0]

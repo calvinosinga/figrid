@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib as mpl
 from figrid.data_container import DataContainer
 import copy
 import seaborn as sns
@@ -268,11 +269,11 @@ class Figrid():
 
     def _getSlice(self, slc):
         if slc is None:
-            return (slice(None), slice(None))
+            return (slice(0, self.dim[0]), slice(0, self.dim[1]))
         
         elif isinstance(slc, list):
             if len(slc) == 0:
-                return (slice(None), slice(None))
+                return (slice(0, self.dim[0]), slice(0, self.dim[1]))
             
             elif isinstance(slc[0], str):
                 mask = np.zeros(self.dim, dtype = bool)
@@ -351,6 +352,7 @@ class Figrid():
                     spine_args_panel[s].update(spine_kwargs)
             else:
                 spine_args_panel[which].update(spine_kwargs)
+            return
 
         spinenp = np.vectorize(_setSpine, cache=True, otypes=[object])
         spinenp(self.spine_args[slc])
@@ -530,6 +532,7 @@ class Figrid():
         self.panel_annotations.append((text, pos, idx, text_kwargs))
         return
     
+
     ##### INTERFACE WITH THE FIGURE #################################
 
     def annotateFig(self, text, pos, text_kwargs = {}, 
@@ -892,7 +895,9 @@ class Figrid():
 
                         if dc.isMatch(match_attrs):
                             dcdata = dc.getData()
-                            dcdata[idx][:] = dcdata[idx][:] / norm[:]
+                            zmask = (norm > 0) | (norm < 0)
+                            dcdata[idx][zmask] = dcdata[idx][zmask] / norm[zmask]
+                            dcdata[idx][~zmask] = 0
 
                             dc.setData(dcdata)
     
@@ -936,4 +941,270 @@ class Figrid():
         save_kwargs.update(other_kwargs)
         self.fig.savefig(path, **save_kwargs)
         return
+
+    # STATIC METHODS
+
+    @staticmethod
+    def combine(figrid_arr, wspace = 0, hspace = 0):
+        figrid_arr = np.array(figrid_arr)
+        if len(figrid_arr.shape) == 1:
+            figrid_arr = np.reshape(figrid_arr, (1, -1))
+        
+        
+        nrows = figrid_arr.shape[0]
+        ncols = figrid_arr.shape[1]
+        # total figsize
+        figwidths = np.zeros((nrows, ncols))
+        figheights = np.zeros((nrows, ncols))
+        for i in range(nrows):
+            for j in range(ncols):
+                figwidths[i, j], figheights[i, j] = \
+                    figrid_arr[i, j].calculateFigsize()
+
+        figsize = np.zeros(2)
+        figsize[0] = np.max(np.sum(figwidths, axis = 1))
+        figsize[1] = np.max(np.sum(figheights, axis = 0))
+
+
+        figsize[0] += wspace * (ncols - 1)
+        figsize[1] += hspace * (nrows - 1)
+        
+
+        # get width/height ratios
+        width_ratios = figwidths[0, :] / np.max(figwidths[0, :])
+        height_ratios = figheights[:, 0] / np.max(figheights[:, 0])
+        # TODO make more general way of obtaining the ratios
+        # TODO wspace not working, is just changing figsize and nothing else
+        fig = plt.figure(figsize = figsize)
+        subfigs = fig.subfigures(nrows, ncols, 
+                wspace = wspace * (ncols - 1),
+                hspace = hspace * (nrows - 1),
+                width_ratios = width_ratios,
+                height_ratios = height_ratios)
+        subfigs = np.reshape(subfigs, (nrows, ncols))
+        for i in range(nrows):
+            for j in range(ncols):
+                sf = subfigs[i, j]
+                fg = figrid_arr[i, j]
+                fg.plot(sf)
+        
+        return fig
+    
+    def addCbar(self, loc = 'row', norm = 'lin', cmap = 'viridis',
+            cbar_kwargs = {}, **other_kwargs):
+        
+        cbar_kwargs.update(other_kwargs)
+
+        def _calcCbarSize(type):
+            if type == 'horizontal':
+                h = self.panelsize[1]
+                cbar_width = self.panelsize[0]
+                cbar_height = h * np.sum(self.gspec_args['height_ratios'])
+                cbar_height += h * np.sum(self.gspec_args['yborder'])
+                cbar_height += h * np.sum(self.gspec_args['hspace'])
+                figsize = self.calculateFigsize()
+                figsize[0] += cbar_width
+
+            
+            return cbar_width, cbar_height, figsize
+
+        def _getClims(axslc):
+            axlist = np.ravel(self.axes[axslc])
+            clim = np.zeros(2)
+            clim[0] = np.inf; clim[1] = -np.inf
+            for col in range(len(axlist)):
+                ax = axlist[col]
+                if len(ax.images) > 0:
+                    im = ax.images[0]
+                    temp_clim = im.get_clim()
+                    if clim[0] > temp_clim[0]:
+                        clim[0] = temp_clim[0]
+                    if clim[1] < temp_clim[1]:
+                        clim[1] = temp_clim[1]
+            
+            return clim
+
+        def _setCbar(axslc, smap):
+            axlist = np.ravel(self.axes[axslc])
+
+            for col in range(len(axlist)):
+                ax = axlist[col]
+                if len(ax.images) > 0:
+                    im = ax.images[0]
+                    im.set(
+                        clim = smap.get_clim(),
+                        norm = smap.norm,
+                        cmap = smap.get_cmap()
+                    )
+            
+            return
+
+        def _makeSmap(clim, norm):
+            if isinstance(norm, str):
+                if norm == 'lin':
+                    norm = mpl.colors.Normalize(clim[0], clim[1])
+                elif norm == 'log':
+                    norm = mpl.colors.LogNorm(clim[0], clim[1])
+                else:
+                    raise NotImplementedError(
+                        "%s not currently accepted keyword norm input..."%norm
+                        )
+            smap = mpl.cm.ScalarMappable(norm = norm, cmap = cmap)
+            return smap
+        
+        def _makeSubplots(fig, gspec, cbar_size):
+            ga = gspec
+            nrows = len(ga['height_ratios'])
+            ncols = len(ga['width_ratios'])
+            hrs = ga['height_ratios']
+            wrs = ga['width_ratios']
+            yb = ga['yborder']; xb = ga['xborder']
+            hs = ga['hspace']; ws = ga['wspace']
+            figwidth = cbar_size[0]; figheight = cbar_size[1]
+
+            panel_width = self.panelsize[0]
+            panel_height = self.panelsize[1]
+            width_ratios = wrs * panel_width; height_ratios = hrs * panel_height
+            xborder = xb * panel_width; yborder = yb * panel_height
+            wspace = ws * panel_width; hspace = hs * panel_height
+            axes = np.empty((nrows, ncols), dtype = object)
+            for i in range(nrows):
+                for j in range(ncols):
+                    # a label makes each axis unique - otherwise mpl will
+                    # return a previously made axis
+                    
+                    ax = fig.add_subplot(label = str((i, j)))
+                    
+                    height = height_ratios[i]
+                    width = width_ratios[j]
+                    
+                    total_hspace = np.sum(hspace[:i])
+                    total_heights = np.sum(height_ratios[:i+1])
+                    total_widths = np.sum(width_ratios[:j])
+                    total_wspace = np.sum(wspace[:j])
+                    
+                    bot = figheight - yborder[0] - total_hspace - total_heights
+                    left = xborder[0] + total_widths + total_wspace
+                    
+                    axdim = [left / figwidth, bot / figheight, 
+                            width / figwidth, height / figheight]
+                    ax.set_position(axdim)
+                    axes[i, j] = ax
+            
+            return axes
+        
+        def _applyTicksAxisArgs(ax, axis_kwargs, tick_kwargs):
+            
+            ax.set(**axis_kwargs)
+            for xory in tick_kwargs:
+                for which in tick_kwargs[xory]:
+                    ax.tick_params(axis = xory,
+                        which = which, **tick_kwargs[xory][which])
+            
+            return
+        
+        if loc == 'row':
+            # calculate cbar subfig size
+            cbar_width, cbar_height, figsize = _calcCbarSize('horizontal')
+
+            figwidth_ratios = np.array([1, cbar_width/figsize[0]])
+            figheight_ratios = np.array([1])
+
+
+            fig = plt.figure(figsize = figsize)
+            subfigs = fig.subfigures(1, 2, wspace = 0, hspace = 0,
+                    width_ratios = figwidth_ratios,
+                    height_ratios = figheight_ratios)
+            
+            subfigs = np.reshape(subfigs, (1, 2))
+
+            # make usual plots
+            self.gspec_args['xborder'][1] = self.gspec_args['wspace'][-1]
+            self.plot(subfig = subfigs[0, 0])
+            
+            # place subplots in cbar figure
+            cbar_gspec = copy.deepcopy(self.gspec_args)
+            cbar_gspec['width_ratios'] = [1]
+            cbar_gspec['xborder'][0] = 0
+            cbar_gspec['wspace'] = []
+            cbar_axes = _makeSubplots(subfigs[0, 1], cbar_gspec, 
+                    [cbar_width, cbar_height])
+            # get the color limits for the colorbar
+
+            clims = np.empty((self.dim[0], 2))
+            for row in range(self.dim[0]):
+                axslc = (row, slice(None))
+                clims[row, :] = _getClims(axslc)
+            
+            # now make the colorbar uniform across the row
+            # then create the colorbar
+            label = None
+            for row in range(self.dim[0]):
+                axslc = (row, slice(None))
+                smap = _makeSmap(clims[row, :], norm)
+                _setCbar(axslc, smap)
+
+                cax = cbar_axes[row, 0]
+               
+                if 'label' in cbar_kwargs:
+                    label = cbar_kwargs.pop('label')
+                
+                subfigs[0, 1].colorbar(cax = cax, mappable = smap, 
+                        **cbar_kwargs)
+
+                _applyTicksAxisArgs(cax, self.axis_args[0, 0], self.tick_args[0, 0])
+                if 'aspect' in cbar_kwargs:
+                    _applyTicksAxisArgs(cax, 
+                        {'aspect':cbar_kwargs['aspect']}, {})
+                
+                if label is not None:
+                    cax.set_ylabel(label, 
+                        **self.axis_label_args['both'])
+                
+                
+                
+        
+        elif loc == 'right':
+            cbar_width, cbar_height, figsize = _calcCbarSize('horizontal')
+            figwidth_ratios = np.array([1, cbar_width/figsize[0]])
+            figheight_ratios = np.array([1])
+
+
+            fig = plt.figure(figsize = figsize)
+            subfigs = fig.subfigures(1, 2, wspace = 0, hspace = 0,
+                    width_ratios = figwidth_ratios,
+                    height_ratios = figheight_ratios)
+            
+            subfigs = np.reshape(subfigs, (1, 2))
+
+            # make usual plots
+            self.plot(subfig = subfigs[0, 0])
+
+            # get colorbar limits
+            axslc = (slice(None), slice(None))
+            clims = _getClims(axslc)
+
+            smap = _makeSmap(clims, norm)
+            _setCbar(axslc, smap)
+            ax = subfigs[0, 1].subplot()
+            subfigs[0, 1].colorbar(cax = ax, mappable = smap, **cbar_kwargs)
+            
+        return fig
+
+
+
+
+
+
+
+
+            
+
+            
+
+
+
+
+
+
     
